@@ -4,6 +4,12 @@
   "private": true,
   "description": "API de autenticação com Node.js, Express e MongoDB (JWT, bcrypt, perfis admin/usuário)",
   "main": "server.js",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
