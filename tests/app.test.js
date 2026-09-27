@@ -3,12 +3,15 @@ const app = require('../src/app');
 
 // O /health agora depende do banco e é testado em health.test.js.
 
-describe('rota inexistente', () => {
-  it('retorna 404 no formato padrão de erro', async () => {
+// Com token, a rota inexistente dá 404: coberto em auth-guard.test.js.
+describe('rota inexistente sem token', () => {
+  it('retorna 401 no formato padrão de erro, sem revelar se a rota existe', async () => {
     const res = await request(app).get('/nao-existe');
 
-    expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: 'Rota não encontrada' } });
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({
+      error: { code: 'UNAUTHENTICATED', message: 'Faça login para acessar este recurso' },
+    });
   });
 });
 
