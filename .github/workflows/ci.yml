@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Um push novo no mesmo PR cancela a execução anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # Este nome é o status check exigido pela proteção da main.
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Fora do workspace para o lint e o Prettier não enxergarem o binário.
+      MONGOMS_DOWNLOAD_DIR: /home/runner/.cache/mongodb-binaries
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # O mongodb-memory-server baixa um mongod de ~100 MB; o cache evita
+      # repetir o download a cada execução.
+      - name: Cache do binário do MongoDB
+        uses: actions/cache@v6
+        with:
+          path: /home/runner/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: mongodb-binaries-${{ runner.os }}-
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Formatação
+        run: npm run format:check
+
+      # Via npm test: o script liga --experimental-vm-modules (ver tests/helpers/db.js).
+      - name: Testes com cobertura
+        run: npm test -- --coverage
+
+      - name: Resumo da cobertura
+        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        run: |
+          node -e "
+          const total = require('./coverage/coverage-summary.json').total;
+          const rows = ['statements', 'branches', 'functions', 'lines']
+            .map((metric) => '| ' + metric + ' | ' + total[metric].pct + '% |');
+          console.log(['### Cobertura de testes', '', '| Métrica | Cobertura |', '| --- | --- |', ...rows].join('\n'));
+          " >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar relatório de cobertura
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+
+      - name: Auditoria de dependências
+        run: npm audit --omit=dev
