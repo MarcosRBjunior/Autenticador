@@ -4,7 +4,7 @@ const cors = require('cors');
 const pinoHttp = require('pino-http');
 
 const env = require('./config/env');
-const logger = require('./utils/logger');
+const { logger } = require('./utils/logger');
 const apiRoutes = require('./routes/api.routes');
 
 const app = express();

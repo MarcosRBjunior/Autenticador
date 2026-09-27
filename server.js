@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const app = require('./src/app');
 const env = require('./src/config/env');
 const { connectDB } = require('./src/config/db');
-const logger = require('./src/utils/logger');
+const { logger } = require('./src/utils/logger');
 
 async function start() {
   await connectDB();
