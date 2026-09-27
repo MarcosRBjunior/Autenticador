@@ -18,7 +18,9 @@ jobs:
   test:
     # Este nome é o status check exigido pela proteção da main.
     name: test
-    runs-on: ubuntu-latest
+    # Fixo: o mongodb-memory-server escolhe o binário do mongod pela versão da
+    # distro, e o ubuntu-latest passa para o Ubuntu 26 em outubro de 2026.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       # Fora do workspace para o lint e o Prettier não enxergarem o binário.
