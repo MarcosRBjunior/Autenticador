@@ -1,14 +1,7 @@
 const request = require('supertest');
 const app = require('../src/app');
 
-describe('GET /health', () => {
-  it('retorna status ok', async () => {
-    const res = await request(app).get('/health');
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
-  });
-});
+// O /health agora depende do banco e é testado em health.test.js.
 
 describe('rota inexistente', () => {
   it('retorna 404', async () => {
@@ -22,7 +15,7 @@ describe('rota inexistente', () => {
 describe('corpo JSON malformado', () => {
   it('retorna 400 em JSON, sem vazar stack trace', async () => {
     const res = await request(app)
-      .post('/health')
+      .post('/api/v1/health')
       .set('Content-Type', 'application/json')
       .send('{"email":');
 
