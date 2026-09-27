@@ -1,3 +1,5 @@
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const db = require('./helpers/db');
 const User = require('../src/models/User');
 const userRepository = require('../src/repositories/UserRepository');
@@ -74,5 +76,95 @@ describe('AuthService.register', () => {
     const attempt = authService.register(input({ email: 'outra@example.com' }));
 
     await expect(attempt).rejects.toMatchObject({ status: 409, code: 'USERNAME_TAKEN' });
+  });
+});
+
+describe('AuthService.login', () => {
+  const activeUser = (overrides = {}) => User.create({ ...input(), isActive: true, ...overrides });
+
+  it('devolve token, expiresIn e o usuário', async () => {
+    const user = await activeUser({ role: 'admin', tokenVersion: 3 });
+
+    const result = await authService.login({ username: 'ana', password: 'senha-forte-123' });
+
+    expect(result.expiresIn).toBe(3600);
+    expect(result.user.username).toBe('ana');
+    expect(jwt.decode(result.token)).toMatchObject({ sub: user.id, role: 'admin', tv: 3 });
+  });
+
+  it('não expõe a senha no usuário devolvido', async () => {
+    await activeUser();
+
+    const { user } = await authService.login({ username: 'ana', password: 'senha-forte-123' });
+
+    expect(user.toJSON()).not.toHaveProperty('password');
+  });
+
+  it.each([
+    ['username com outra caixa', 'ANA'],
+    ['e-mail', 'ana@example.com'],
+    ['e-mail com outra caixa', 'Ana@Example.COM'],
+  ])('aceita %s', async (_what, username) => {
+    await activeUser();
+
+    const result = await authService.login({ username, password: 'senha-forte-123' });
+
+    expect(result.user.username).toBe('ana');
+  });
+
+  it('recusa senha errada com 401 INVALID_CREDENTIALS', async () => {
+    await activeUser();
+
+    await expect(
+      authService.login({ username: 'ana', password: 'senha-errada' }),
+    ).rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' });
+  });
+
+  it('responde igual para usuário inexistente e senha errada', async () => {
+    await activeUser();
+
+    const wrongPassword = await authService
+      .login({ username: 'ana', password: 'senha-errada' })
+      .catch((err) => err);
+    const unknownUser = await authService
+      .login({ username: 'ninguem', password: 'senha-errada' })
+      .catch((err) => err);
+
+    expect(unknownUser).toBeInstanceOf(AppError);
+    expect([unknownUser.status, unknownUser.code, unknownUser.message]).toEqual([
+      wrongPassword.status,
+      wrongPassword.code,
+      wrongPassword.message,
+    ]);
+  });
+
+  // Sem isso, a resposta para usuário inexistente sai bem mais rápida e
+  // denuncia quais usernames existem.
+  it('roda o bcrypt com o mesmo custo mesmo quando o usuário não existe', async () => {
+    await activeUser();
+    const { password: realHash } = await User.findOne().select('+password').lean();
+    const compare = jest.spyOn(bcrypt, 'compare');
+
+    await authService.login({ username: 'ninguem', password: 'x' }).catch(() => {});
+
+    expect(compare).toHaveBeenCalledTimes(1);
+    const usedHash = compare.mock.calls[0][1];
+    expect(bcrypt.getRounds(usedHash)).toBe(bcrypt.getRounds(realHash));
+  });
+
+  it('bloqueia conta inativa com 403 ACCOUNT_INACTIVE quando a senha está certa', async () => {
+    await activeUser({ isActive: false });
+
+    await expect(
+      authService.login({ username: 'ana', password: 'senha-forte-123' }),
+    ).rejects.toMatchObject({ status: 403, code: 'ACCOUNT_INACTIVE' });
+  });
+
+  it('não revela que a conta está inativa para quem erra a senha', async () => {
+    await activeUser({ isActive: false });
+
+    await expect(
+      authService.login({ username: 'ana', password: 'senha-errada' }),
+    ).rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' });
   });
 });

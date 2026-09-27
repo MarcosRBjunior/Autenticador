@@ -29,4 +29,20 @@ const password = z
 // z.object descarta chaves desconhecidas: um "role" no body some aqui.
 const registerSchema = z.object({ username, email, password });
 
-module.exports = { registerSchema };
+// O login não repete as regras de formato do registro: uma senha fora do
+// padrão recebe o mesmo 401 de credenciais inválidas. Exigir texto já barra
+// objetos como {"$gt": ""} antes de chegarem ao Mongo.
+const loginSchema = z.object({
+  // Aceita o username ou o e-mail no mesmo campo.
+  username: z
+    .string({ error: 'Informe o username ou e-mail' })
+    .trim()
+    .min(1, 'Informe o username ou e-mail')
+    .max(254, 'Username ou e-mail longo demais'),
+  password: z
+    .string({ error: 'Informe a senha' })
+    .min(1, 'Informe a senha')
+    .max(1024, 'Senha longa demais'),
+});
+
+module.exports = { registerSchema, loginSchema };
