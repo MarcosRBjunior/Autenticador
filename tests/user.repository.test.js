@@ -57,6 +57,20 @@ describe('UserRepository.findByUsernameOrEmail', () => {
   });
 });
 
+describe('UserRepository.create', () => {
+  it('grava o usuário com a senha em hash e devolve o documento', async () => {
+    const user = await userRepository.create({
+      username: 'ana',
+      email: 'ana@example.com',
+      password: 'senha-forte-123',
+    });
+
+    const { password } = await User.findById(user._id).select('+password').lean();
+    expect(user.username).toBe('ana');
+    expect(password).toMatch(/^\$2b\$/);
+  });
+});
+
 describe('UserRepository.findById', () => {
   it('encontra o usuário sem a senha', async () => {
     const user = await createUser();

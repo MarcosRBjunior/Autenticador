@@ -20,6 +20,11 @@ function findById(id) {
   return User.findById(id);
 }
 
+// create() passa pelo save(), então o hook de hash da senha roda.
+function create(data) {
+  return User.create(data);
+}
+
 async function list({ page = 1, limit = 20, search, fields = DEFAULT_LIST_FIELDS } = {}) {
   const filter = search ? { username: { $regex: escapeRegex(search), $options: 'i' } } : {};
 
@@ -57,6 +62,7 @@ function countAdmins() {
 module.exports = {
   findByUsernameOrEmail,
   findById,
+  create,
   list,
   update,
   delete: remove,
