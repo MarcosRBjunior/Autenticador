@@ -61,4 +61,26 @@ describe('config/env', () => {
       expect(result.stderr).toContain('TRUST_PROXY');
     });
   });
+
+  describe('CORS_ORIGIN', () => {
+    const readCorsOrigin = (value) =>
+      JSON.parse(
+        spawnSync(
+          process.execPath,
+          ['-e', "process.stdout.write(JSON.stringify(require('./src/config/env').CORS_ORIGIN))"],
+          { cwd: root, env: { ...process.env, CORS_ORIGIN: value }, encoding: 'utf8' },
+        ).stdout,
+      );
+
+    it('vira uma lista de origens', () => {
+      expect(readCorsOrigin('http://localhost:5173')).toEqual(['http://localhost:5173']);
+    });
+
+    it('aceita várias origens separadas por vírgula, ignorando espaços', () => {
+      expect(readCorsOrigin('http://localhost:5173, https://app.example.com ,')).toEqual([
+        'http://localhost:5173',
+        'https://app.example.com',
+      ]);
+    });
+  });
 });

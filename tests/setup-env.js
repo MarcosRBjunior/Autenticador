@@ -6,3 +6,5 @@ process.env.JWT_SECRET = 'test-only-secret-with-at-least-32-chars';
 // Simula a Vercel (1 proxy na frente): os testes usam X-Forwarded-For para
 // dar um IP diferente a cada cenário de rate limit.
 process.env.TRUST_PROXY = '1';
+// Fixo para os testes de CORS não dependerem do .env local.
+process.env.CORS_ORIGIN = 'http://localhost:5173';
