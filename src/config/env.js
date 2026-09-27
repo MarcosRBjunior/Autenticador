@@ -6,7 +6,16 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-  CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  // Origens separadas por vírgula que podem chamar a API com cookies.
+  CORS_ORIGIN: z
+    .string()
+    .default('http://localhost:5173')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    ),
   // Quantos proxies ficam na frente do app (a Vercel usa 1). Com 0, o
   // X-Forwarded-For é ignorado e o cliente não consegue forjar o próprio IP.
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
