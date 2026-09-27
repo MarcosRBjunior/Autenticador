@@ -7,6 +7,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  // Quantos proxies ficam na frente do app (a Vercel usa 1). Com 0, o
+  // X-Forwarded-For é ignorado e o cliente não consegue forjar o próprio IP.
+  TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   MONGODB_URI: z.string({ error: 'obrigatória' }).min(1, 'obrigatória'),
   JWT_SECRET: z
     .string({ error: 'obrigatória' })
