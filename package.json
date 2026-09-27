@@ -48,6 +48,14 @@
       "<rootDir>/tests"
     ],
     "globalSetup": "<rootDir>/tests/global-setup.js",
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "json-summary"
+    ],
     "setupFiles": [
       "<rootDir>/tests/setup-env.js"
     ]
