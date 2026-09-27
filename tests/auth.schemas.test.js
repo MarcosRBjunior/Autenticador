@@ -1,11 +1,11 @@
 const { z } = require('zod');
-const { registerSchema } = require('../src/validators/auth.schemas');
+const { registerSchema, loginSchema } = require('../src/validators/auth.schemas');
 
 const valid = { username: 'ana.maria_01', email: 'ana@example.com', password: 'senha-forte' };
 
 // Devolve os campos com erro, ou [] quando o body é válido.
-const fieldsWithErrors = (body) => {
-  const result = registerSchema.safeParse(body);
+const fieldsWithErrors = (body, schema = registerSchema) => {
+  const result = schema.safeParse(body);
   return result.success ? [] : Object.keys(z.flattenError(result.error).fieldErrors).sort();
 };
 
@@ -70,5 +70,36 @@ describe('registerSchema', () => {
     ['número', 12345678],
   ])('rejeita username do tipo %s', (_why, username) => {
     expect(fieldsWithErrors({ ...valid, username })).toEqual(['username']);
+  });
+});
+
+describe('loginSchema', () => {
+  const login = (body) => fieldsWithErrors(body, loginSchema);
+
+  it('aceita username ou e-mail no campo username', () => {
+    expect(login({ username: 'ana', password: 'qualquer' })).toEqual([]);
+    expect(login({ username: 'ana@example.com', password: 'qualquer' })).toEqual([]);
+  });
+
+  it('remove espaços em volta do username', () => {
+    expect(loginSchema.parse({ username: '  ana ', password: 'x' }).username).toBe('ana');
+  });
+
+  it('exige username e senha', () => {
+    expect(login({})).toEqual(['password', 'username']);
+    expect(login({ username: '', password: '' })).toEqual(['password', 'username']);
+  });
+
+  // Não aplica as regras de formato do registro: quem erra o formato só
+  // recebe o mesmo 401 de credenciais inválidas.
+  it('não valida o formato da senha além de exigir que exista', () => {
+    expect(login({ username: 'ana', password: '1' })).toEqual([]);
+  });
+
+  it.each([
+    ['username', { username: { $gt: '' }, password: 'x' }],
+    ['password', { username: 'ana', password: { $ne: null } }],
+  ])('rejeita objeto no lugar de texto em %s (injeção NoSQL)', (field, body) => {
+    expect(login(body)).toEqual([field]);
   });
 });
