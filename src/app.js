@@ -11,6 +11,10 @@ const apiRoutes = require('./routes/api.routes');
 
 const app = express();
 
+// Atrás de proxy (Vercel), req.ip só é o IP real do cliente se o Express
+// confiar no X-Forwarded-For. O rate limit depende disso.
+app.set('trust proxy', env.TRUST_PROXY);
+
 // O log de requisição vem primeiro para que o requestId exista também nas
 // requisições rejeitadas pelos middlewares seguintes (ex.: JSON malformado).
 app.use(createRequestLogger(logger));
