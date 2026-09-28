@@ -18,6 +18,11 @@ afterEach(db.clear);
 afterAll(db.close);
 
 describe('AuthToken model', () => {
+  // Nome da especificação (seção 11.2), não o plural automático do Mongoose.
+  it('grava na collection auth_tokens', () => {
+    expect(AuthToken.collection.collectionName).toBe('auth_tokens');
+  });
+
   it('nasce sem usedAt', async () => {
     const token = await AuthToken.create(validToken());
 
