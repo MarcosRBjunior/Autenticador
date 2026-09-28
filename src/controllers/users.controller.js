@@ -10,4 +10,10 @@ async function getById(req, res) {
   res.json({ user });
 }
 
-module.exports = { list, getById };
+// Só admin chega aqui (isAdmin na rota); req.body já passou pela whitelist.
+async function update(req, res) {
+  const user = await userService.updateUser(req.user, req.validated.params.id, req.body);
+  res.json({ user });
+}
+
+module.exports = { list, getById, update };
