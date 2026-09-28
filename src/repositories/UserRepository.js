@@ -53,6 +53,12 @@ async function update(id, data) {
   return user;
 }
 
+// Derruba todos os JWTs já emitidos do usuário (logout). $inc no banco, e não
+// ler-somar-salvar, para dois logouts simultâneos não se sobrescreverem.
+async function incrementTokenVersion(id) {
+  await User.updateOne({ _id: id }, { $inc: { tokenVersion: 1 } });
+}
+
 async function remove(id) {
   const { deletedCount } = await User.deleteOne({ _id: id });
   return deletedCount === 1;
@@ -86,6 +92,7 @@ module.exports = {
   create,
   list,
   update,
+  incrementTokenVersion,
   delete: remove,
   countAdmins,
   countActiveAdmins,

@@ -234,3 +234,27 @@ describe('UserRepository.countActiveAdmins', () => {
     await expect(userRepository.countActiveAdmins({ excludeId: ana.id })).resolves.toBe(1);
   });
 });
+
+describe('UserRepository.incrementTokenVersion', () => {
+  it('soma 1 ao tokenVersion só do usuário informado', async () => {
+    const ana = await createUser({ tokenVersion: 3 });
+    const bia = await createUser({ username: 'bia', email: 'bia@example.com' });
+
+    await userRepository.incrementTokenVersion(ana._id);
+
+    expect((await User.findById(ana._id).lean()).tokenVersion).toBe(4);
+    expect((await User.findById(bia._id).lean()).tokenVersion).toBe(0);
+  });
+
+  // Dois logouts ao mesmo tempo não podem se sobrescrever.
+  it('é atômico com chamadas simultâneas', async () => {
+    const ana = await createUser();
+
+    await Promise.all([
+      userRepository.incrementTokenVersion(ana.id),
+      userRepository.incrementTokenVersion(ana.id),
+    ]);
+
+    expect((await User.findById(ana._id).lean()).tokenVersion).toBe(2);
+  });
+});
