@@ -62,6 +62,16 @@ function countAdmins() {
   return User.countDocuments({ role: 'admin' });
 }
 
+// Resumo para a área administrativa (API da US-08 e painel da US-19).
+async function stats() {
+  const [totalUsers, admins, inactive] = await Promise.all([
+    User.countDocuments(),
+    countAdmins(),
+    User.countDocuments({ isActive: false }),
+  ]);
+  return { totalUsers, admins, inactive };
+}
+
 module.exports = {
   findByUsernameOrEmail,
   findById,
@@ -70,4 +80,5 @@ module.exports = {
   update,
   delete: remove,
   countAdmins,
+  stats,
 };

@@ -185,6 +185,28 @@ describe('UserRepository.delete', () => {
   });
 });
 
+describe('UserRepository.stats', () => {
+  it('conta o total, os admins e os inativos', async () => {
+    await createUser({ role: 'admin', isActive: true });
+    await createUser({ username: 'bia', email: 'bia@example.com', isActive: true });
+    await createUser({ username: 'caio', email: 'caio@example.com' });
+
+    await expect(userRepository.stats()).resolves.toEqual({
+      totalUsers: 3,
+      admins: 1,
+      inactive: 1,
+    });
+  });
+
+  it('devolve zeros com o banco vazio', async () => {
+    await expect(userRepository.stats()).resolves.toEqual({
+      totalUsers: 0,
+      admins: 0,
+      inactive: 0,
+    });
+  });
+});
+
 describe('UserRepository.countAdmins', () => {
   it('conta só os admins', async () => {
     await createUser({ role: 'admin' });
