@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const userRepository = require('../repositories/UserRepository');
 const tokenService = require('./TokenService');
 const AppError = require('../utils/AppError');
+const { TAKEN, toTakenError } = require('../utils/takenErrors');
 
 // Hash de uma senha aleatória descartada, com o mesmo custo (12) do model
 // User. Quando o usuário não existe, o bcrypt compara contra ele para a
@@ -10,19 +11,6 @@ const DUMMY_PASSWORD_HASH = '$2b$12$KQukYzH1xnYTgbahuP1RuuyiTwDisPXwRMzgfA00/NGs
 
 const invalidCredentials = () =>
   new AppError(401, 'INVALID_CREDENTIALS', 'Usuário ou senha inválidos');
-
-// details segue o formato dos erros de validação (campo → mensagens), para a
-// interface tratar os dois do mesmo jeito.
-const TAKEN = {
-  username: () =>
-    new AppError(409, 'USERNAME_TAKEN', 'Username já cadastrado', {
-      username: ['Este username já está em uso'],
-    }),
-  email: () =>
-    new AppError(409, 'EMAIL_TAKEN', 'E-mail já cadastrado', {
-      email: ['Este e-mail já está cadastrado'],
-    }),
-};
 
 async function register({ username, email, password }) {
   const existing = await userRepository.findByUsernameOrEmail(username, email);
@@ -42,11 +30,7 @@ async function register({ username, email, password }) {
     });
   } catch (err) {
     // Registro simultâneo: passou pela checagem acima, mas o índice único barrou.
-    if (err?.code === 11000) {
-      const field = Object.keys(err.keyPattern ?? {})[0];
-      if (TAKEN[field]) throw TAKEN[field]();
-    }
-    throw err;
+    throw toTakenError(err);
   }
 }
 
