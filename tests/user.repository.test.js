@@ -216,3 +216,21 @@ describe('UserRepository.countAdmins', () => {
     await expect(userRepository.countAdmins()).resolves.toBe(2);
   });
 });
+
+describe('UserRepository.countActiveAdmins', () => {
+  it('conta só os admins ativos', async () => {
+    await createUser({ role: 'admin', isActive: true });
+    await createUser({ username: 'bia', email: 'bia@example.com', role: 'admin' });
+    await createUser({ username: 'caio', email: 'caio@example.com', isActive: true });
+
+    await expect(userRepository.countActiveAdmins()).resolves.toBe(1);
+  });
+
+  it('deixa de fora o id informado', async () => {
+    const ana = await createUser({ role: 'admin', isActive: true });
+    await createUser({ username: 'bia', email: 'bia@example.com', role: 'admin', isActive: true });
+
+    await expect(userRepository.countActiveAdmins({ excludeId: ana._id })).resolves.toBe(1);
+    await expect(userRepository.countActiveAdmins({ excludeId: ana.id })).resolves.toBe(1);
+  });
+});

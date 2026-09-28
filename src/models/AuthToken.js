@@ -10,7 +10,8 @@ const authTokenSchema = new mongoose.Schema(
     expiresAt: { type: Date, required: true },
     usedAt: { type: Date, default: null },
   },
-  { timestamps: true },
+  // Nome da especificação; sem ele o Mongoose usaria "authtokens".
+  { timestamps: true, collection: 'auth_tokens' },
 );
 
 // O Mongo apaga o documento quando expiresAt passa (a varredura roda a cada
