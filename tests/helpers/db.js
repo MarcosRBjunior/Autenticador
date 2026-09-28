@@ -24,4 +24,7 @@ async function close() {
   await mongod?.stop();
 }
 
-module.exports = { connect, clear, close };
+// Para processos filhos (ex.: scripts de linha de comando) usarem o mesmo banco.
+const uri = () => mongod.getUri();
+
+module.exports = { connect, clear, close, uri };
