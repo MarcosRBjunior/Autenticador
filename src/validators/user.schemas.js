@@ -44,4 +44,9 @@ const updateUserSchema = z
     }
   });
 
-module.exports = { listUsersQuery, userIdParams, updateUserSchema };
+// D-07: a role só muda por esta rota dedicada; o resto do body é descartado.
+const updateRoleSchema = z.object({
+  role: z.enum(['user', 'admin'], { error: 'A role deve ser "user" ou "admin"' }),
+});
+
+module.exports = { listUsersQuery, userIdParams, updateUserSchema, updateRoleSchema };

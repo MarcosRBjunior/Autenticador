@@ -3,6 +3,7 @@ const {
   listUsersQuery,
   userIdParams,
   updateUserSchema,
+  updateRoleSchema,
 } = require('../src/validators/user.schemas');
 
 describe('listUsersQuery', () => {
@@ -113,5 +114,30 @@ describe('updateUserSchema', () => {
     ['senha acima de 72 bytes', { password: 'é'.repeat(37) }],
   ])('aplica as regras do registro: recusa %s', (_why, body) => {
     expect(updateUserSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe('updateRoleSchema', () => {
+  it.each(['user', 'admin'])('aceita a role %s', (role) => {
+    expect(updateRoleSchema.parse({ role })).toEqual({ role });
+  });
+
+  it('descarta outros campos: esta rota só muda a role', () => {
+    const body = { role: 'admin', username: 'outro', password: 'nova-senha-456', isActive: true };
+
+    expect(updateRoleSchema.parse(body)).toEqual({ role: 'admin' });
+  });
+
+  it.each([
+    ['role fora do enum', { role: 'superadmin' }],
+    ['role com maiúscula', { role: 'Admin' }],
+    ['role nula', { role: null }],
+    ['role repetida (lista)', { role: ['admin'] }],
+    ['corpo sem role', {}],
+  ])('recusa %s, apontando o campo role', (_why, body) => {
+    const result = updateRoleSchema.safeParse(body);
+
+    expect(result.success).toBe(false);
+    expect(Object.keys(z.flattenError(result.error).fieldErrors)).toEqual(['role']);
   });
 });
