@@ -16,7 +16,8 @@ function extractToken(req) {
   return req.cookies?.access_token ?? null;
 }
 
-async function isAuthenticated(req, res, next) {
+// Devolve o dono do token da requisição ou lança 401 (AppError).
+async function authenticate(req) {
   const token = extractToken(req);
   if (!token) throw unauthenticated();
 
@@ -35,7 +36,23 @@ async function isAuthenticated(req, res, next) {
   // ou mudança de perfil.
   if (!user || user.tokenVersion !== payload.tv) throw invalidToken();
 
-  req.user = user;
+  return user;
+}
+
+async function isAuthenticated(req, res, next) {
+  req.user = await authenticate(req);
+  next();
+}
+
+// Para o logout: preenche req.user quando o token é válido e segue sem usuário
+// quando não é. Só os 401 de authenticate são engolidos; um erro de banco segue
+// para o errorHandler.
+async function identifyUser(req, res, next) {
+  try {
+    req.user = await authenticate(req);
+  } catch (err) {
+    if (!(err instanceof AppError)) throw err;
+  }
   next();
 }
 
@@ -48,4 +65,4 @@ function isAdmin(req, res, next) {
   next();
 }
 
-module.exports = { isAuthenticated, isAdmin };
+module.exports = { isAuthenticated, isAdmin, identifyUser };
