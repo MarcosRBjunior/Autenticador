@@ -22,4 +22,9 @@ async function getUser(viewer, id) {
   return user;
 }
 
-module.exports = { listUsers, getUser };
+// D-09: no MVP a área administrativa é só um resumo com contadores.
+function getStats() {
+  return userRepository.stats();
+}
+
+module.exports = { listUsers, getUser, getStats };
