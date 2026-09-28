@@ -10,6 +10,10 @@ async function getById(req, res) {
   res.json({ user });
 }
 
+async function me(req, res) {
+  res.json({ user: await userService.getProfile(req.user) });
+}
+
 // Só admin chega aqui (isAdmin na rota); req.body já passou pela whitelist.
 async function update(req, res) {
   const user = await userService.updateUser(req.user, req.validated.params.id, req.body);
@@ -26,4 +30,4 @@ async function remove(req, res) {
   res.status(204).end();
 }
 
-module.exports = { list, getById, update, updateRole, remove };
+module.exports = { list, getById, me, update, updateRole, remove };

@@ -26,6 +26,14 @@ async function getUser(viewer, id) {
   return user;
 }
 
+// GET /me: o próprio usuário vê de si os mesmos campos que o admin vê de
+// qualquer conta, seja qual for o perfil dele.
+async function getProfile(viewer) {
+  const user = await userRepository.findById(viewer.id, { fields: FIELDS_BY_ROLE.admin });
+  if (!user) throw notFound();
+  return user;
+}
+
 // Só username e senha (RN-08: role tem rota própria). O hook do model refaz o
 // hash e incrementa o tokenVersion quando a senha muda (RN-11).
 async function updateUser(viewer, id, { username, password }) {
@@ -88,4 +96,12 @@ function getStats() {
   return userRepository.stats();
 }
 
-module.exports = { listUsers, getUser, updateUser, changeRole, deleteUser, getStats };
+module.exports = {
+  listUsers,
+  getUser,
+  getProfile,
+  updateUser,
+  changeRole,
+  deleteUser,
+  getStats,
+};

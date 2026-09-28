@@ -24,6 +24,7 @@ router.post('/login', loginLimiter, validate(loginSchema), authController.login)
 router.post('/logout', identifyUser, authController.logout);
 
 // Protegidas pelo guard global: qualquer usuário autenticado.
+router.get('/me', usersController.me);
 router.get('/users', validate(listUsersQuery, 'query'), usersController.list);
 router.get('/users/:id', validate(userIdParams, 'params'), usersController.getById);
 
