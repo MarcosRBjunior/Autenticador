@@ -86,6 +86,14 @@ describe('UserRepository.findById', () => {
 
     expect(found).toBeNull();
   });
+
+  it('aceita uma projeção específica', async () => {
+    const user = await createUser();
+
+    const found = await userRepository.findById(user._id, { fields: 'username createdAt' });
+
+    expect(Object.keys(found.toJSON()).sort()).toEqual(['_id', 'createdAt', 'username']);
+  });
 });
 
 describe('UserRepository.list', () => {

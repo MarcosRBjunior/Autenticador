@@ -16,8 +16,11 @@ function findByUsernameOrEmail(username, email, { withPassword = false } = {}) {
   return withPassword ? query.select('+password') : query;
 }
 
-function findById(id) {
-  return User.findById(id);
+// Sem fields traz o documento completo (menos a senha), como o middleware de
+// autenticação precisa para conferir o tokenVersion.
+function findById(id, { fields } = {}) {
+  const query = User.findById(id);
+  return fields ? query.select(fields) : query;
 }
 
 // create() passa pelo save(), então o hook de hash da senha roda.
