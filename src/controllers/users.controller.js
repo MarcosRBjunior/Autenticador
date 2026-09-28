@@ -16,4 +16,9 @@ async function update(req, res) {
   res.json({ user });
 }
 
-module.exports = { list, getById, update };
+async function remove(req, res) {
+  await userService.deleteUser(req.validated.params.id);
+  res.status(204).end();
+}
+
+module.exports = { list, getById, update, remove };

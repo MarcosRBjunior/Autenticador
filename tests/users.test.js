@@ -3,6 +3,8 @@ const request = require('supertest');
 const db = require('./helpers/db');
 const { createUser, createUserWithToken } = require('./helpers/auth');
 const User = require('../src/models/User');
+const AuthToken = require('../src/models/AuthToken');
+const authTokenRepository = require('../src/repositories/AuthTokenRepository');
 const app = require('../src/app');
 
 // Projeções por perfil (D-08).
@@ -20,11 +22,19 @@ const put = (path, token, body) => {
   return token ? call.set('Authorization', `Bearer ${token}`) : call;
 };
 
+const del = (path, token) => {
+  const call = request(app).delete(path);
+  return token ? call.set('Authorization', `Bearer ${token}`) : call;
+};
+
 beforeAll(async () => {
   await db.connect();
   await User.init();
 });
-afterEach(db.clear);
+afterEach(async () => {
+  jest.restoreAllMocks();
+  await db.clear();
+});
 afterAll(db.close);
 
 describe('GET /api/v1/users', () => {
@@ -325,5 +335,146 @@ describe('PUT /api/v1/users/:id', () => {
 
     expect(res.status).toBe(200);
     expect(JSON.stringify(res.body)).not.toMatch(SENSITIVE);
+  });
+});
+
+describe('DELETE /api/v1/users/:id', () => {
+  const createAuthToken = (userId, tokenHash) =>
+    AuthToken.create({
+      userId,
+      type: 'activation',
+      tokenHash,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+
+  it('exige token', async () => {
+    const target = await createUser();
+
+    const res = await del(`/api/v1/users/${target.id}`);
+
+    expect(res.status).toBe(401);
+  });
+
+  // RN-07 / D-06: só admin exclui contas, e o usuário comum nem a própria.
+  it.each([
+    ['em outra conta', false],
+    ['na própria conta', true],
+  ])('responde 403 ao usuário comum %s, sem excluir nada', async (_why, ownAccount) => {
+    const { user, token } = await createUserWithToken();
+    const target = ownAccount ? user : await createUser();
+
+    const res = await del(`/api/v1/users/${target.id}`, token);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(await User.exists({ _id: target.id })).not.toBeNull();
+  });
+
+  it('responde 403 ao usuário comum antes de validar o id', async () => {
+    const { token } = await createUserWithToken();
+
+    const res = await del('/api/v1/users/123', token);
+
+    expect(res.status).toBe(403);
+  });
+
+  // D-13: hard delete.
+  it('exclui o usuário de vez e responde 204 sem corpo', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+    const target = await createUser();
+
+    const res = await del(`/api/v1/users/${target.id}`, token);
+
+    expect(res.status).toBe(204);
+    expect(res.text).toBe('');
+    expect(await User.exists({ _id: target.id })).toBeNull();
+  });
+
+  it('remove os auth_tokens do usuário excluído e mantém os dos outros', async () => {
+    const { user: admin, token } = await createUserWithToken({ role: 'admin' });
+    const target = await createUser();
+    await createAuthToken(target._id, 'a'.repeat(64));
+    await createAuthToken(target._id, 'b'.repeat(64));
+    await createAuthToken(admin._id, 'c'.repeat(64));
+
+    await del(`/api/v1/users/${target.id}`, token);
+
+    expect(await AuthToken.countDocuments({ userId: target._id })).toBe(0);
+    expect(await AuthToken.countDocuments({ userId: admin._id })).toBe(1);
+  });
+
+  // Tokens antes do usuário: se a remoção deles falhar, o usuário continua lá
+  // e repetir a requisição funciona, em vez de dar 404 com tokens órfãos.
+  it('mantém o usuário quando a remoção dos auth_tokens falha', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+    const target = await createUser();
+    jest.spyOn(authTokenRepository, 'deleteByUserId').mockRejectedValueOnce(new Error('falha'));
+
+    const res = await del(`/api/v1/users/${target.id}`, token);
+
+    expect(res.status).toBe(500);
+    expect(await User.exists({ _id: target.id })).not.toBeNull();
+  });
+
+  it('os tokens do usuário excluído passam a dar 401', async () => {
+    const { token: adminToken } = await createUserWithToken({ role: 'admin' });
+    const { user: ana, token: anaToken } = await createUserWithToken();
+
+    const res = await del(`/api/v1/users/${ana.id}`, adminToken);
+    const after = await get('/api/v1/users', anaToken);
+
+    expect(res.status).toBe(204);
+    expect(after.status).toBe(401);
+  });
+
+  it('exclui outro admin quando quem pede continua como admin ativo', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+    const other = await createUser({ role: 'admin' });
+
+    const res = await del(`/api/v1/users/${other.id}`, token);
+
+    expect(res.status).toBe(204);
+  });
+
+  it('deixa o admin excluir a própria conta quando há outro admin ativo', async () => {
+    const { user: admin, token } = await createUserWithToken({ role: 'admin' });
+    await createUser({ role: 'admin' });
+
+    const res = await del(`/api/v1/users/${admin.id}`, token);
+
+    expect(res.status).toBe(204);
+  });
+
+  // RN-09: o sistema sempre mantém ao menos 1 admin ativo.
+  it.each([
+    ['é o único admin', {}],
+    ['o outro admin está inativo', { role: 'admin', isActive: false }],
+  ])('responde 409 LAST_ADMIN quando o admin exclui a própria conta e %s', async (_why, other) => {
+    const { user: admin, token } = await createUserWithToken({ role: 'admin' });
+    if (other.role) await createUser(other);
+
+    const res = await del(`/api/v1/users/${admin.id}`, token);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LAST_ADMIN');
+    expect(await User.exists({ _id: admin.id })).not.toBeNull();
+  });
+
+  it('responde 404 para id que não existe', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+
+    const res = await del(`/api/v1/users/${new mongoose.Types.ObjectId()}`, token);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatchObject({ code: 'NOT_FOUND', message: 'Usuário não encontrado' });
+  });
+
+  it('responde 400 para id malformado', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+
+    const res = await del('/api/v1/users/123', token);
+
+    expect(res.status).toBe(400);
+    expect(Object.keys(res.body.error.details)).toEqual(['id']);
   });
 });

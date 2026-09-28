@@ -1,4 +1,5 @@
 const userRepository = require('../src/repositories/UserRepository');
+const authTokenRepository = require('../src/repositories/AuthTokenRepository');
 const userService = require('../src/services/UserService');
 
 afterEach(() => jest.restoreAllMocks());
@@ -12,5 +13,19 @@ describe('UserService', () => {
     await userService.listUsers({ role: 'moderador' }, { page: 1, limit: 20 });
 
     expect(list).toHaveBeenCalledWith(expect.objectContaining({ fields: 'username createdAt' }));
+  });
+});
+
+describe('UserService.deleteUser', () => {
+  // Outra requisição excluiu o usuário entre a leitura e a exclusão.
+  it('responde 404 quando o usuário some antes de ser excluído', async () => {
+    jest.spyOn(userRepository, 'findById').mockResolvedValue({ role: 'user' });
+    jest.spyOn(userRepository, 'delete').mockResolvedValue(false);
+    jest.spyOn(authTokenRepository, 'deleteByUserId').mockResolvedValue(0);
+
+    await expect(userService.deleteUser('6ab9d3e327b44b76dd42a759')).rejects.toMatchObject({
+      status: 404,
+      code: 'NOT_FOUND',
+    });
   });
 });

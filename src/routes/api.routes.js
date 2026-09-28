@@ -31,5 +31,6 @@ router.put(
   validate(updateUserSchema),
   usersController.update,
 );
+router.delete('/users/:id', isAdmin, validate(userIdParams, 'params'), usersController.remove);
 
 module.exports = router;
