@@ -16,6 +16,18 @@ describe('UserService', () => {
   });
 });
 
+describe('UserService.changeRole', () => {
+  // Outra requisição excluiu o usuário entre a leitura e a atualização.
+  it('responde 404 quando o usuário some antes de ser atualizado', async () => {
+    jest.spyOn(userRepository, 'findById').mockResolvedValue({ role: 'user' });
+    jest.spyOn(userRepository, 'update').mockResolvedValue(null);
+
+    const attempt = userService.changeRole({ role: 'admin' }, '6ab9d3e327b44b76dd42a759', 'admin');
+
+    await expect(attempt).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' });
+  });
+});
+
 describe('UserService.deleteUser', () => {
   // Outra requisição excluiu o usuário entre a leitura e a exclusão.
   it('responde 404 quando o usuário some antes de ser excluído', async () => {

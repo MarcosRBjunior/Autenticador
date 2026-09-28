@@ -56,6 +56,19 @@ async function ensureOtherActiveAdmin(id, action) {
   throw new AppError(409, 'LAST_ADMIN', `Não é possível ${action} o último admin ativo`);
 }
 
+// D-07: a role só muda por aqui (RN-08). O hook do model incrementa o
+// tokenVersion quando ela muda de fato: o token antigo carrega a role antiga.
+async function changeRole(viewer, id, role) {
+  const user = await userRepository.findById(id, { fields: 'role' });
+  if (!user) throw notFound();
+
+  if (user.role === 'admin' && role !== 'admin') await ensureOtherActiveAdmin(id, 'rebaixar');
+
+  // Excluído por outra requisição entre a leitura e aqui.
+  if (!(await userRepository.update(id, { role }))) throw notFound();
+  return getUser(viewer, id);
+}
+
 // D-13: hard delete, levando junto os auth_tokens do usuário.
 async function deleteUser(id) {
   const user = await userRepository.findById(id, { fields: 'role' });
@@ -75,4 +88,4 @@ function getStats() {
   return userRepository.stats();
 }
 
-module.exports = { listUsers, getUser, updateUser, deleteUser, getStats };
+module.exports = { listUsers, getUser, updateUser, changeRole, deleteUser, getStats };

@@ -16,9 +16,14 @@ async function update(req, res) {
   res.json({ user });
 }
 
+async function updateRole(req, res) {
+  const user = await userService.changeRole(req.user, req.validated.params.id, req.body.role);
+  res.json({ user });
+}
+
 async function remove(req, res) {
   await userService.deleteUser(req.validated.params.id);
   res.status(204).end();
 }
 
-module.exports = { list, getById, update, remove };
+module.exports = { list, getById, update, updateRole, remove };
