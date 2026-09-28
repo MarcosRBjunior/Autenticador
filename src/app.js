@@ -10,6 +10,7 @@ const { createRequestLogger } = require('./middlewares/requestLogger');
 const { authGuard } = require('./middlewares/authGuard');
 const { errorHandler } = require('./middlewares/errorHandler');
 const apiRoutes = require('./routes/api.routes');
+const pageRoutes = require('./routes/page.routes');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use(cookieParser());
 app.use(authGuard);
 
 app.use('/api/v1', apiRoutes);
+app.use(pageRoutes);
 
 app.use(() => {
   throw new AppError(404, 'NOT_FOUND', 'Rota não encontrada');

@@ -52,4 +52,12 @@ async function login({ username, password }) {
   return { token, expiresIn: tokenService.EXPIRES_IN_SECONDS, user };
 }
 
-module.exports = { register, login };
+// D-12: o JWT é stateless, então sair = incrementar o tokenVersion. Isso derruba
+// todas as sessões do usuário, em qualquer dispositivo. Sem usuário (token
+// ausente ou já inválido) não há o que invalidar.
+async function logout(user) {
+  if (!user) return;
+  await userRepository.incrementTokenVersion(user.id);
+}
+
+module.exports = { register, login, logout };

@@ -3,7 +3,7 @@ const healthController = require('../controllers/health.controller');
 const authController = require('../controllers/auth.controller');
 const usersController = require('../controllers/users.controller');
 const adminController = require('../controllers/admin.controller');
-const { isAdmin } = require('../middlewares/auth');
+const { isAdmin, identifyUser } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validate');
 const { registerLimiter, loginLimiter } = require('../middlewares/rateLimiters');
 const { registerSchema, loginSchema } = require('../validators/auth.schemas');
@@ -21,6 +21,7 @@ router.get('/health', healthController.check);
 // Públicas: liberadas na allowlist de middlewares/authGuard.js.
 router.post('/register', registerLimiter, validate(registerSchema), authController.register);
 router.post('/login', loginLimiter, validate(loginSchema), authController.login);
+router.post('/logout', identifyUser, authController.logout);
 
 // Protegidas pelo guard global: qualquer usuário autenticado.
 router.get('/users', validate(listUsersQuery, 'query'), usersController.list);

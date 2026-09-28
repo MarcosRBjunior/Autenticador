@@ -21,4 +21,21 @@ async function login(req, res) {
   res.status(200).json({ token, expiresIn, user });
 }
 
-module.exports = { register, login };
+// req.user vem do identifyUser: existe só se o token ainda era válido. O cookie
+// sai sempre, com os mesmos atributos do login (senão o navegador não o apaga).
+async function endSession(req, res) {
+  await authService.logout(req.user);
+  res.clearCookie('access_token', ACCESS_TOKEN_COOKIE);
+}
+
+async function logout(req, res) {
+  await endSession(req, res);
+  res.status(204).end();
+}
+
+async function logoutPage(req, res) {
+  await endSession(req, res);
+  res.redirect('/login');
+}
+
+module.exports = { register, login, logout, logoutPage };
