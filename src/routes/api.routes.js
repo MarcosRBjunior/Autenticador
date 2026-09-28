@@ -7,7 +7,12 @@ const { isAdmin } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validate');
 const { registerLimiter, loginLimiter } = require('../middlewares/rateLimiters');
 const { registerSchema, loginSchema } = require('../validators/auth.schemas');
-const { listUsersQuery, userIdParams, updateUserSchema } = require('../validators/user.schemas');
+const {
+  listUsersQuery,
+  userIdParams,
+  updateUserSchema,
+  updateRoleSchema,
+} = require('../validators/user.schemas');
 
 const router = Router();
 
@@ -30,6 +35,13 @@ router.put(
   validate(userIdParams, 'params'),
   validate(updateUserSchema),
   usersController.update,
+);
+router.patch(
+  '/users/:id/role',
+  isAdmin,
+  validate(userIdParams, 'params'),
+  validate(updateRoleSchema),
+  usersController.updateRole,
 );
 router.delete('/users/:id', isAdmin, validate(userIdParams, 'params'), usersController.remove);
 

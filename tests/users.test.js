@@ -27,6 +27,11 @@ const del = (path, token) => {
   return token ? call.set('Authorization', `Bearer ${token}`) : call;
 };
 
+const patch = (path, token, body) => {
+  const call = request(app).patch(path).send(body);
+  return token ? call.set('Authorization', `Bearer ${token}`) : call;
+};
+
 beforeAll(async () => {
   await db.connect();
   await User.init();
@@ -473,6 +478,162 @@ describe('DELETE /api/v1/users/:id', () => {
     const { token } = await createUserWithToken({ role: 'admin' });
 
     const res = await del('/api/v1/users/123', token);
+
+    expect(res.status).toBe(400);
+    expect(Object.keys(res.body.error.details)).toEqual(['id']);
+  });
+});
+
+describe('PATCH /api/v1/users/:id/role', () => {
+  const rolePath = (id) => `/api/v1/users/${id}/role`;
+
+  it('exige token', async () => {
+    const target = await createUser();
+
+    const res = await patch(rolePath(target.id), undefined, { role: 'admin' });
+
+    expect(res.status).toBe(401);
+  });
+
+  // D-07: a rota dedicada existe para evitar escalada de privilégio.
+  it.each([
+    ['em outra conta', false],
+    ['na própria conta', true],
+  ])('responde 403 ao usuário comum que tenta promover %s', async (_why, ownAccount) => {
+    const { user, token } = await createUserWithToken();
+    const target = ownAccount ? user : await createUser();
+
+    const res = await patch(rolePath(target.id), token, { role: 'admin' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect((await User.findById(target.id)).role).toBe('user');
+  });
+
+  it('responde 403 ao usuário comum antes de validar o corpo', async () => {
+    const { user, token } = await createUserWithToken();
+
+    const res = await patch(rolePath(user.id), token, { role: 'superadmin' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('promove um usuário a admin e devolve a visão de admin', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+    const target = await createUser({ username: 'ana' });
+
+    const res = await patch(rolePath(target.id), token, { role: 'admin' });
+
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body.user).sort()).toEqual(ADMIN_FIELDS);
+    expect(res.body.user).toMatchObject({ _id: target.id, username: 'ana', role: 'admin' });
+    expect((await User.findById(target.id)).role).toBe('admin');
+  });
+
+  it('rebaixa outro admin quando quem pede continua como admin ativo', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+    const other = await createUser({ role: 'admin' });
+
+    const res = await patch(rolePath(other.id), token, { role: 'user' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.role).toBe('user');
+  });
+
+  it('deixa o admin rebaixar a si mesmo quando há outro admin ativo', async () => {
+    const { user: admin, token } = await createUserWithToken({ role: 'admin' });
+    await createUser({ role: 'admin' });
+
+    const res = await patch(rolePath(admin.id), token, { role: 'user' });
+
+    expect(res.status).toBe(200);
+    expect((await User.findById(admin.id)).role).toBe('user');
+  });
+
+  // O token antigo carrega a role antiga.
+  it('após mudar a role, os tokens antigos do usuário dão 401', async () => {
+    const { token: adminToken } = await createUserWithToken({ role: 'admin' });
+    const { user: ana, token: anaToken } = await createUserWithToken();
+
+    await patch(rolePath(ana.id), adminToken, { role: 'admin' });
+    const res = await get('/api/v1/users', anaToken);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('INVALID_TOKEN');
+  });
+
+  it('manter a mesma role responde 200 sem derrubar as sessões', async () => {
+    const { token: adminToken } = await createUserWithToken({ role: 'admin' });
+    const { user: ana, token: anaToken } = await createUserWithToken();
+
+    const update = await patch(rolePath(ana.id), adminToken, { role: 'user' });
+    const res = await get('/api/v1/users', anaToken);
+
+    expect(update.status).toBe(200);
+    expect(update.body.user.role).toBe('user');
+    expect(res.status).toBe(200);
+  });
+
+  // RN-09: o sistema sempre mantém ao menos 1 admin ativo.
+  it.each([
+    ['é o único admin', {}],
+    ['o outro admin está inativo', { role: 'admin', isActive: false }],
+  ])('responde 409 LAST_ADMIN quando o admin rebaixa a si mesmo e %s', async (_why, other) => {
+    const { user: admin, token } = await createUserWithToken({ role: 'admin' });
+    if (other.role) await createUser(other);
+
+    const res = await patch(rolePath(admin.id), token, { role: 'user' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LAST_ADMIN');
+    expect((await User.findById(admin.id)).role).toBe('admin');
+  });
+
+  // Não é rebaixamento: a regra do último admin não se aplica.
+  it('deixa o único admin reenviar a própria role de admin', async () => {
+    const { user: admin, token } = await createUserWithToken({ role: 'admin' });
+
+    const res = await patch(rolePath(admin.id), token, { role: 'admin' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('ignora outros campos do corpo', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+    const target = await createUser({ username: 'ana' });
+
+    const res = await patch(rolePath(target.id), token, { role: 'admin', username: 'outro' });
+
+    expect(res.status).toBe(200);
+    expect((await User.findById(target.id)).username).toBe('ana');
+  });
+
+  it.each([
+    ['role fora do enum', { role: 'superadmin' }],
+    ['corpo sem role', {}],
+  ])('responde 400 para %s', async (_why, body) => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+    const target = await createUser();
+
+    const res = await patch(rolePath(target.id), token, body);
+
+    expect(res.status).toBe(400);
+    expect(Object.keys(res.body.error.details)).toEqual(['role']);
+  });
+
+  it('responde 404 para id que não existe', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+
+    const res = await patch(rolePath(new mongoose.Types.ObjectId()), token, { role: 'admin' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatchObject({ code: 'NOT_FOUND', message: 'Usuário não encontrado' });
+  });
+
+  it('responde 400 para id malformado', async () => {
+    const { token } = await createUserWithToken({ role: 'admin' });
+
+    const res = await patch(rolePath('123'), token, { role: 'admin' });
 
     expect(res.status).toBe(400);
     expect(Object.keys(res.body.error.details)).toEqual(['id']);

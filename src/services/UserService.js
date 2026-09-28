@@ -45,21 +45,36 @@ async function updateUser(viewer, id, { username, password }) {
   return getUser(viewer, id);
 }
 
+// RN-09: um admin só sai (excluído ou rebaixado) se sobrar outro admin ativo.
+// Checar e depois alterar não é atômico: dois admins tirando um ao outro no
+// mesmo instante poderiam zerar os admins. Uma transação sozinha não fecha isso
+// (as duas leem a mesma contagem e alteram documentos diferentes, sem
+// conflito); seria preciso que ambas escrevessem num documento de trava comum,
+// o que exige replica set. Se acontecer, `npm run seed:admin` cria um admin.
+async function ensureOtherActiveAdmin(id, action) {
+  if ((await userRepository.countActiveAdmins({ excludeId: id })) > 0) return;
+  throw new AppError(409, 'LAST_ADMIN', `Não é possível ${action} o último admin ativo`);
+}
+
+// D-07: a role só muda por aqui (RN-08). O hook do model incrementa o
+// tokenVersion quando ela muda de fato: o token antigo carrega a role antiga.
+async function changeRole(viewer, id, role) {
+  const user = await userRepository.findById(id, { fields: 'role' });
+  if (!user) throw notFound();
+
+  if (user.role === 'admin' && role !== 'admin') await ensureOtherActiveAdmin(id, 'rebaixar');
+
+  // Excluído por outra requisição entre a leitura e aqui.
+  if (!(await userRepository.update(id, { role }))) throw notFound();
+  return getUser(viewer, id);
+}
+
 // D-13: hard delete, levando junto os auth_tokens do usuário.
-//
-// RN-09: um admin só sai se sobrar outro admin ativo. Checar e depois excluir
-// não é atômico: dois admins excluindo um ao outro no mesmo instante poderiam
-// zerar os admins. Uma transação sozinha não fecha isso (as duas leem a mesma
-// contagem e excluem documentos diferentes, sem conflito); seria preciso que
-// ambas escrevessem num documento de trava comum, o que exige replica set.
-// Se acontecer, `npm run seed:admin` cria um admin de novo.
 async function deleteUser(id) {
   const user = await userRepository.findById(id, { fields: 'role' });
   if (!user) throw notFound();
 
-  if (user.role === 'admin' && (await userRepository.countActiveAdmins({ excludeId: id })) === 0) {
-    throw new AppError(409, 'LAST_ADMIN', 'Não é possível excluir o último admin ativo');
-  }
+  if (user.role === 'admin') await ensureOtherActiveAdmin(id, 'excluir');
 
   // Tokens antes do usuário: se isto falhar, nada foi excluído e a requisição
   // pode ser repetida, sem deixar tokens órfãos.
@@ -73,4 +88,4 @@ function getStats() {
   return userRepository.stats();
 }
 
-module.exports = { listUsers, getUser, updateUser, deleteUser, getStats };
+module.exports = { listUsers, getUser, updateUser, changeRole, deleteUser, getStats };
