@@ -1,4 +1,9 @@
-const { listUsersQuery, userIdParams } = require('../src/validators/user.schemas');
+const { z } = require('zod');
+const {
+  listUsersQuery,
+  userIdParams,
+  updateUserSchema,
+} = require('../src/validators/user.schemas');
 
 describe('listUsersQuery', () => {
   it('usa page 1 e limit 20 por padrão', () => {
@@ -52,5 +57,61 @@ describe('userIdParams', () => {
     ['de 12 caracteres', 'abcdefghijkl'],
   ])('recusa id %s', (_why, id) => {
     expect(userIdParams.safeParse({ id }).success).toBe(false);
+  });
+});
+
+describe('updateUserSchema', () => {
+  it('aceita só o username, sem espaços nas pontas', () => {
+    expect(updateUserSchema.parse({ username: '  ana.maria ' })).toEqual({ username: 'ana.maria' });
+  });
+
+  it('aceita só a senha', () => {
+    expect(updateUserSchema.parse({ password: 'nova-senha-456' })).toEqual({
+      password: 'nova-senha-456',
+    });
+  });
+
+  it('aceita username e senha juntos', () => {
+    expect(updateUserSchema.parse({ username: 'ana', password: 'nova-senha-456' })).toEqual({
+      username: 'ana',
+      password: 'nova-senha-456',
+    });
+  });
+
+  // RN-08: role só muda pela rota dedicada. email, isActive e tokenVersion
+  // também não são editáveis aqui.
+  it('descarta campos fora da lista permitida', () => {
+    const body = {
+      username: 'ana',
+      role: 'admin',
+      email: 'outro@example.com',
+      isActive: true,
+      tokenVersion: 0,
+    };
+
+    expect(updateUserSchema.parse(body)).toEqual({ username: 'ana' });
+  });
+
+  it.each([
+    ['corpo vazio', {}],
+    ['só campos ignorados', { role: 'admin' }],
+  ])('recusa %s, apontando os dois campos', (_why, body) => {
+    const result = updateUserSchema.safeParse(body);
+
+    expect(result.success).toBe(false);
+    expect(Object.keys(z.flattenError(result.error).fieldErrors).sort()).toEqual([
+      'password',
+      'username',
+    ]);
+  });
+
+  it.each([
+    ['username curto', { username: 'ab' }],
+    ['username com espaço no meio', { username: 'ana maria' }],
+    ['username nulo', { username: null }],
+    ['senha curta', { password: '1234567' }],
+    ['senha acima de 72 bytes', { password: 'é'.repeat(37) }],
+  ])('aplica as regras do registro: recusa %s', (_why, body) => {
+    expect(updateUserSchema.safeParse(body).success).toBe(false);
   });
 });

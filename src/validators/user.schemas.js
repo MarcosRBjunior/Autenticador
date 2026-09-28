@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { registerSchema } = require('./auth.schemas');
 
 // A query chega como texto: page e limit são convertidos para número. Um
 // parâmetro repetido chega como lista e é recusado.
@@ -27,4 +28,20 @@ const userIdParams = z.object({
   id: z.string().regex(/^[a-f\d]{24}$/i, 'Id inválido'),
 });
 
-module.exports = { listUsersQuery, userIdParams };
+// Mesmas regras de formato do registro (inclui o limite de 72 bytes do bcrypt).
+const { username, password } = registerSchema.shape;
+const NOTHING_TO_UPDATE = 'Informe o novo username ou a nova senha';
+
+// Lista do que o admin pode editar aqui (RN-08: role tem rota própria). O
+// z.object descarta o resto, então um body só com "role" chega vazio e é
+// recusado, em vez de responder 200 sem ter mudado nada.
+const updateUserSchema = z
+  .object({ username: username.optional(), password: password.optional() })
+  .superRefine((data, ctx) => {
+    if (data.username !== undefined || data.password !== undefined) return;
+    for (const field of ['username', 'password']) {
+      ctx.addIssue({ code: 'custom', path: [field], message: NOTHING_TO_UPDATE });
+    }
+  });
+
+module.exports = { listUsersQuery, userIdParams, updateUserSchema };
