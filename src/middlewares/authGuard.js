@@ -16,6 +16,10 @@ const PUBLIC_ROUTES = [
   ['GET', '/register'],
   ['GET', '/forgot-password'],
   ['GET', '/reset-password'],
+  // O logout identifica o usuário por conta própria (identifyUser) e sai com
+  // sucesso mesmo com token ausente, expirado ou já invalidado.
+  ['POST', '/api/v1/logout'],
+  ['GET', '/logout'],
 ];
 
 function isPublicRoute(req) {

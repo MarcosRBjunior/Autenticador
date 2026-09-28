@@ -16,6 +16,17 @@ describe('UserService', () => {
   });
 });
 
+describe('UserService.getProfile', () => {
+  // Outra requisição excluiu o usuário entre o guard e a leitura do perfil.
+  it('responde 404 quando o usuário some depois de autenticado', async () => {
+    jest.spyOn(userRepository, 'findById').mockResolvedValue(null);
+
+    await expect(
+      userService.getProfile({ id: '6ab9d3e327b44b76dd42a759', role: 'user' }),
+    ).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' });
+  });
+});
+
 describe('UserService.changeRole', () => {
   // Outra requisição excluiu o usuário entre a leitura e a atualização.
   it('responde 404 quando o usuário some antes de ser atualizado', async () => {

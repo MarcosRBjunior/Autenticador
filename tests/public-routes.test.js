@@ -15,6 +15,9 @@ describe('isPublicRoute', () => {
     ['GET', '/register'],
     ['GET', '/forgot-password'],
     ['GET', '/reset-password'],
+    // Logout responde 204 (ou redireciona) até com token inválido.
+    ['POST', '/api/v1/logout'],
+    ['GET', '/logout'],
   ])('libera %s %s', (method, path) => {
     expect(isPublicRoute(req(method, path))).toBe(true);
   });
@@ -34,6 +37,8 @@ describe('isPublicRoute', () => {
     ['GET', '/api/v1/auth/activate/', 'ativação sem token'],
     ['GET', '/api/v1/auth/activate/a/b', 'ativação com segmento extra'],
     ['POST', '/login', 'formulário ainda não liberado (entra na US-18)'],
+    ['GET', '/api/v1/logout', 'logout da API só por POST'],
+    ['GET', '/api/v1/me', 'rota protegida'],
   ])('protege %s %s (%s)', (method, path) => {
     expect(isPublicRoute(req(method, path))).toBe(false);
   });

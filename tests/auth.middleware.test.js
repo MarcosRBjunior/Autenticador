@@ -5,7 +5,8 @@ const request = require('supertest');
 const db = require('./helpers/db');
 const User = require('../src/models/User');
 const tokenService = require('../src/services/TokenService');
-const { isAuthenticated, isAdmin } = require('../src/middlewares/auth');
+const userRepository = require('../src/repositories/UserRepository');
+const { isAuthenticated, isAdmin, identifyUser } = require('../src/middlewares/auth');
 const { errorHandler } = require('../src/middlewares/errorHandler');
 
 const SECRET = process.env.JWT_SECRET;
@@ -16,6 +17,7 @@ app.use(cookieParser());
 app.get('/me', isAuthenticated, (req, res) => res.json({ username: req.user.username }));
 app.get('/admin', isAuthenticated, isAdmin, (req, res) => res.json({ ok: true }));
 app.get('/admin-sem-auth', isAdmin, (req, res) => res.json({ ok: true }));
+app.get('/quem', identifyUser, (req, res) => res.json({ username: req.user?.username ?? null }));
 app.use(errorHandler);
 
 const createUser = (overrides = {}) =>
@@ -33,7 +35,10 @@ const tokenFor = (user) =>
 const withBearer = (path, token) => request(app).get(path).set('Authorization', `Bearer ${token}`);
 
 beforeAll(db.connect);
-afterEach(db.clear);
+afterEach(async () => {
+  jest.restoreAllMocks();
+  await db.clear();
+});
 afterAll(db.close);
 
 describe('isAuthenticated', () => {
@@ -181,5 +186,66 @@ describe('isAdmin', () => {
     const res = await request(app).get('/admin-sem-auth');
 
     expect(res.status).toBe(401);
+  });
+});
+
+// Para o logout: identifica o dono de um token válido, mas nunca barra.
+describe('identifyUser', () => {
+  const whoAmI = (token) => {
+    const call = request(app).get('/quem');
+    return token ? call.set('Authorization', `Bearer ${token}`) : call;
+  };
+
+  it('preenche req.user com token válido', async () => {
+    const user = await createUser();
+
+    const res = await whoAmI(tokenFor(user));
+
+    expect(res.body).toEqual({ username: 'ana' });
+  });
+
+  it('aceita o token pelo cookie', async () => {
+    const user = await createUser();
+
+    const res = await request(app)
+      .get('/quem')
+      .set('Cookie', `access_token=${tokenFor(user)}`);
+
+    expect(res.body).toEqual({ username: 'ana' });
+  });
+
+  it('segue sem usuário quando não há token', async () => {
+    const res = await whoAmI();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ username: null });
+  });
+
+  it('segue sem usuário com token adulterado', async () => {
+    const res = await whoAmI('token-ruim');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ username: null });
+  });
+
+  it('segue sem usuário com tv desatualizado', async () => {
+    const user = await createUser();
+    const token = tokenFor(user);
+    await User.updateOne({ _id: user._id }, { $inc: { tokenVersion: 1 } });
+
+    const res = await whoAmI(token);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ username: null });
+  });
+
+  // Banco fora do ar não é "token inválido": o erro segue para o errorHandler.
+  it('deixa passar erros que não são de autenticação', async () => {
+    const user = await createUser();
+    jest.spyOn(userRepository, 'findById').mockRejectedValue(new Error('banco fora do ar'));
+
+    const res = await whoAmI(tokenFor(user));
+
+    expect(res.status).toBe(500);
   });
 });
