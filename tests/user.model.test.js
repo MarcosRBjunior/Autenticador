@@ -35,6 +35,27 @@ describe('User model', () => {
     expect(hashAfter).toBe(hashBefore);
   });
 
+  // RN-11: trocar a senha invalida os JWTs emitidos antes.
+  it('incrementa o tokenVersion quando a senha de um usuário existente muda', async () => {
+    const user = await User.create(validUser());
+
+    user.password = 'outra-senha-456';
+    await user.save();
+
+    const stored = await User.findById(user._id).lean();
+    expect(stored.tokenVersion).toBe(1);
+  });
+
+  it('não incrementa o tokenVersion quando outro campo muda', async () => {
+    const user = await User.create(validUser());
+
+    user.username = 'ana.maria';
+    await user.save();
+
+    const stored = await User.findById(user._id).lean();
+    expect(stored.tokenVersion).toBe(0);
+  });
+
   it('não devolve a senha em consultas comuns', async () => {
     const user = await User.create(validUser());
 
