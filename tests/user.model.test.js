@@ -46,10 +46,35 @@ describe('User model', () => {
     expect(stored.tokenVersion).toBe(1);
   });
 
-  it('não incrementa o tokenVersion quando outro campo muda', async () => {
+  // US-13: o token antigo carrega a role antiga.
+  it('incrementa o tokenVersion quando a role muda', async () => {
     const user = await User.create(validUser());
 
-    user.username = 'ana.maria';
+    user.role = 'admin';
+    await user.save();
+
+    const stored = await User.findById(user._id).lean();
+    expect(stored.tokenVersion).toBe(1);
+  });
+
+  it('não refaz o hash quando só a role muda', async () => {
+    const user = await User.create(validUser());
+    const { password: hashBefore } = await User.findById(user._id).select('+password').lean();
+
+    user.role = 'admin';
+    await user.save();
+
+    const { password: hashAfter } = await User.findById(user._id).select('+password').lean();
+    expect(hashAfter).toBe(hashBefore);
+  });
+
+  it.each([
+    ['outro campo muda', (user) => (user.username = 'ana.maria')],
+    ['a role recebe o mesmo valor', (user) => (user.role = 'user')],
+  ])('não incrementa o tokenVersion quando %s', async (_why, change) => {
+    const user = await User.create(validUser());
+
+    change(user);
     await user.save();
 
     const stored = await User.findById(user._id).lean();

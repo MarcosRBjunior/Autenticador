@@ -22,11 +22,15 @@ userSchema.index({ username: 1 }, { unique: true, collation: { locale: 'en', str
 userSchema.index({ email: 1 }, { unique: true });
 
 userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
-  this.password = await bcrypt.hash(this.password, BCRYPT_ROUNDS);
-  // RN-11: senha nova derruba os JWTs emitidos com a antiga. Fica aqui, e não
-  // em cada rota, para nenhum caminho que troque a senha esquecer disso.
-  if (!this.isNew) this.tokenVersion += 1;
+  // Senha nova (RN-11) ou role nova (o token carrega a role) derrubam os JWTs
+  // emitidos antes. Fica aqui, e não em cada rota, para nenhum caminho que
+  // mude uma das duas esquecer disso. Role igual à atual não conta como mudança.
+  if (!this.isNew && (this.isModified('password') || this.isModified('role'))) {
+    this.tokenVersion += 1;
+  }
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, BCRYPT_ROUNDS);
+  }
 });
 
 userSchema.set('toJSON', {
