@@ -62,6 +62,14 @@ function countAdmins() {
   return User.countDocuments({ role: 'admin' });
 }
 
+// RN-09: o sistema sempre mantém ao menos 1 admin ativo. excludeId conta os
+// que sobrariam se aquele usuário saísse (exclusão ou rebaixamento).
+function countActiveAdmins({ excludeId } = {}) {
+  const filter = { role: 'admin', isActive: true };
+  if (excludeId) filter._id = { $ne: excludeId };
+  return User.countDocuments(filter);
+}
+
 // Resumo para a área administrativa (API da US-08 e painel da US-19).
 async function stats() {
   const [totalUsers, admins, inactive] = await Promise.all([
@@ -80,5 +88,6 @@ module.exports = {
   update,
   delete: remove,
   countAdmins,
+  countActiveAdmins,
   stats,
 };
