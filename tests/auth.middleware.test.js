@@ -14,10 +14,12 @@ const base64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64
 
 const app = express();
 app.use(cookieParser());
-app.get('/me', isAuthenticated, (req, res) => res.json({ username: req.user.username }));
-app.get('/admin', isAuthenticated, isAdmin, (req, res) => res.json({ ok: true }));
-app.get('/admin-sem-auth', isAdmin, (req, res) => res.json({ ok: true }));
-app.get('/quem', identifyUser, (req, res) => res.json({ username: req.user?.username ?? null }));
+app.get('/api/me', isAuthenticated, (req, res) => res.json({ username: req.user.username }));
+app.get('/api/admin', isAuthenticated, isAdmin, (req, res) => res.json({ ok: true }));
+app.get('/api/admin-sem-auth', isAdmin, (req, res) => res.json({ ok: true }));
+app.get('/api/quem', identifyUser, (req, res) =>
+  res.json({ username: req.user?.username ?? null }),
+);
 app.use(errorHandler);
 
 const createUser = (overrides = {}) =>
@@ -45,7 +47,7 @@ describe('isAuthenticated', () => {
   it('aceita o token no header Authorization: Bearer e preenche req.user', async () => {
     const user = await createUser();
 
-    const res = await withBearer('/me', tokenFor(user));
+    const res = await withBearer('/api/me', tokenFor(user));
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ username: 'ana' });
@@ -55,7 +57,7 @@ describe('isAuthenticated', () => {
     const user = await createUser();
 
     const res = await request(app)
-      .get('/me')
+      .get('/api/me')
       .set('Authorization', `bearer ${tokenFor(user)}`);
 
     expect(res.status).toBe(200);
@@ -65,14 +67,14 @@ describe('isAuthenticated', () => {
     const user = await createUser();
 
     const res = await request(app)
-      .get('/me')
+      .get('/api/me')
       .set('Cookie', `access_token=${tokenFor(user)}`);
 
     expect(res.status).toBe(200);
   });
 
   it('responde 401 UNAUTHENTICATED sem token', async () => {
-    const res = await request(app).get('/me');
+    const res = await request(app).get('/api/me');
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHENTICATED');
@@ -81,7 +83,7 @@ describe('isAuthenticated', () => {
   it.each(['Basic YW5hOnNlbmhh', 'Bearer', 'Bearer '])(
     'responde 401 com Authorization malformado (%s)',
     async (header) => {
-      const res = await request(app).get('/me').set('Authorization', header);
+      const res = await request(app).get('/api/me').set('Authorization', header);
 
       expect(res.status).toBe(401);
     },
@@ -89,7 +91,7 @@ describe('isAuthenticated', () => {
 
   describe('tokens inválidos → 401 INVALID_TOKEN', () => {
     const expectInvalid = async (token) => {
-      const res = await withBearer('/me', token);
+      const res = await withBearer('/api/me', token);
       expect(res.status).toBe(401);
       expect(res.body.error.code).toBe('INVALID_TOKEN');
     };
@@ -145,7 +147,7 @@ describe('isAuthenticated', () => {
     const user = await createUser();
 
     const res = await request(app)
-      .get('/me')
+      .get('/api/me')
       .set('Authorization', 'Bearer token-ruim')
       .set('Cookie', `access_token=${tokenFor(user)}`);
 
@@ -157,7 +159,7 @@ describe('isAdmin', () => {
   it('deixa passar admin', async () => {
     const admin = await createUser({ role: 'admin' });
 
-    const res = await withBearer('/admin', tokenFor(admin));
+    const res = await withBearer('/api/admin', tokenFor(admin));
 
     expect(res.status).toBe(200);
   });
@@ -165,7 +167,7 @@ describe('isAdmin', () => {
   it('responde 403 FORBIDDEN para usuário comum', async () => {
     const user = await createUser();
 
-    const res = await withBearer('/admin', tokenFor(user));
+    const res = await withBearer('/api/admin', tokenFor(user));
 
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
@@ -177,13 +179,13 @@ describe('isAdmin', () => {
     const user = await createUser();
     const tokenClaimingAdmin = tokenService.sign({ sub: user.id, role: 'admin', tv: 0 });
 
-    const res = await withBearer('/admin', tokenClaimingAdmin);
+    const res = await withBearer('/api/admin', tokenClaimingAdmin);
 
     expect(res.status).toBe(403);
   });
 
   it('responde 401 se usado sem autenticação antes', async () => {
-    const res = await request(app).get('/admin-sem-auth');
+    const res = await request(app).get('/api/admin-sem-auth');
 
     expect(res.status).toBe(401);
   });
@@ -192,7 +194,7 @@ describe('isAdmin', () => {
 // Para o logout: identifica o dono de um token válido, mas nunca barra.
 describe('identifyUser', () => {
   const whoAmI = (token) => {
-    const call = request(app).get('/quem');
+    const call = request(app).get('/api/quem');
     return token ? call.set('Authorization', `Bearer ${token}`) : call;
   };
 
@@ -208,7 +210,7 @@ describe('identifyUser', () => {
     const user = await createUser();
 
     const res = await request(app)
-      .get('/quem')
+      .get('/api/quem')
       .set('Cookie', `access_token=${tokenFor(user)}`);
 
     expect(res.body).toEqual({ username: 'ana' });

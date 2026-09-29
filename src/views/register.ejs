@@ -1,0 +1,13 @@
+<%- include('partials/head', { title: 'Criar conta' }) %>
+<%- include('partials/card-top', { heading: 'Criar conta' }) %>
+<form class="gl-form" method="post" action="/register" novalidate>
+  <%- include('partials/csrf') %>
+  <%- include('partials/field', { name: 'username', label: 'Username', type: 'text', autocomplete: 'username', value: values.username, hint: '3 a 30 caracteres: letras sem acento, números, ponto, hífen e _' }) %>
+  <%- include('partials/field', { name: 'email', label: 'E-mail', type: 'email', autocomplete: 'email', value: values.email }) %>
+  <%- include('partials/field', { name: 'password', label: 'Senha', type: 'password', autocomplete: 'new-password', hint: '8 a 72 caracteres' }) %>
+  <%- include('partials/field', { name: 'passwordConfirmation', label: 'Confirmar senha', type: 'password', autocomplete: 'new-password' }) %>
+  <button type="submit" class="gl-btn gl-submit">Criar conta</button>
+</form>
+<p class="gl-footer">Já tem conta? <a href="/login">Entrar</a></p>
+<%- include('partials/card-bottom') %>
+<%- include('partials/foot') %>

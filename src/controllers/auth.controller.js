@@ -1,14 +1,6 @@
 const authService = require('../services/AuthService');
 const background = require('../utils/background');
-
-// Secure sempre: navegadores aceitam cookie Secure em http://localhost, e em
-// produção o app só roda em HTTPS.
-const ACCESS_TOKEN_COOKIE = {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'lax',
-  path: '/',
-};
+const { setSessionCookie, clearSessionCookie } = require('../utils/sessionCookie');
 
 async function register(req, res) {
   const user = await authService.register(req.body);
@@ -21,15 +13,15 @@ async function register(req, res) {
 
 async function login(req, res) {
   const { token, expiresIn, user } = await authService.login(req.body);
-  res.cookie('access_token', token, { ...ACCESS_TOKEN_COOKIE, maxAge: expiresIn * 1000 });
+  setSessionCookie(res, { token, expiresIn });
   res.status(200).json({ token, expiresIn, user });
 }
 
 // req.user vem do identifyUser: existe só se o token ainda era válido. O cookie
-// sai sempre, com os mesmos atributos do login (senão o navegador não o apaga).
+// sai sempre.
 async function endSession(req, res) {
   await authService.logout(req.user);
-  res.clearCookie('access_token', ACCESS_TOKEN_COOKIE);
+  clearSessionCookie(res);
 }
 
 async function logout(req, res) {

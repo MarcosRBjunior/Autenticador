@@ -4,6 +4,7 @@ const req = (method, path) => ({ method, path });
 
 describe('isPublicRoute', () => {
   it.each([
+    ['GET', '/'],
     ['GET', '/api/v1/health'],
     ['POST', '/api/v1/register'],
     ['POST', '/api/v1/login'],
@@ -12,9 +13,17 @@ describe('isPublicRoute', () => {
     ['POST', '/api/v1/auth/activate'],
     ['POST', '/api/v1/auth/resend-activation'],
     ['GET', '/login'],
+    ['POST', '/login'],
     ['GET', '/register'],
+    ['POST', '/register'],
+    ['GET', '/activate'],
+    ['POST', '/activate'],
+    ['GET', '/resend-activation'],
+    ['POST', '/resend-activation'],
     ['GET', '/forgot-password'],
     ['GET', '/reset-password'],
+    ['POST', '/forgot-password'],
+    ['POST', '/reset-password'],
     // Logout responde 204 (ou redireciona) até com token inválido.
     ['POST', '/api/v1/logout'],
     ['GET', '/logout'],
@@ -40,7 +49,6 @@ describe('isPublicRoute', () => {
       'ativação por GET, que scanners de link abrem sozinhos',
     ],
     ['GET', '/api/v1/auth/activate', 'ativação só por POST'],
-    ['POST', '/login', 'formulário ainda não liberado (entra na US-18)'],
     ['GET', '/api/v1/logout', 'logout da API só por POST'],
     ['GET', '/api/v1/me', 'rota protegida'],
   ])('protege %s %s (%s)', (method, path) => {

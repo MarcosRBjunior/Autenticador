@@ -6,7 +6,7 @@ const app = require('../src/app');
 // Com token, a rota inexistente dá 404: coberto em auth-guard.test.js.
 describe('rota inexistente sem token', () => {
   it('retorna 401 no formato padrão de erro, sem revelar se a rota existe', async () => {
-    const res = await request(app).get('/nao-existe');
+    const res = await request(app).get('/api/nao-existe');
 
     expect(res.status).toBe(401);
     expect(res.body).toEqual({

@@ -1,0 +1,44 @@
+<%- include('partials/head', { title: 'Usuários' }) %>
+<div class="gl-app">
+  <%- include('partials/decor') %>
+  <%- include('partials/topbar', { active: 'users' }) %>
+  <main class="gl-main">
+    <div class="gl-toolbar">
+      <h1>Usuários</h1>
+      <form class="gl-search" method="get" action="/users" role="search">
+        <label class="gl-visually-hidden" for="search">Buscar por username</label>
+        <input id="search" name="search" type="search" value="<%= search %>" placeholder="Buscar por username" />
+        <button type="submit">Buscar</button>
+      </form>
+    </div>
+    <p class="gl-count"><%= total %> <%= total === 1 ? 'usuário' : 'usuários' %></p>
+    <% if (users.length === 0) { %>
+      <p class="gl-empty gl-glass">Nenhum usuário encontrado<% if (search) { %> para “<%= search %>”<% } %>.</p>
+    <% } else { %>
+      <ul class="gl-grid">
+        <% for (const user of users) { %>
+          <li class="gl-user gl-glass">
+            <div class="gl-avatar" aria-hidden="true"><%= user.initial %></div>
+            <p class="gl-user-name"><%= user.username %></p>
+            <% if (viewer.isAdmin) { %>
+              <p class="gl-user-email"><%= user.email %></p>
+              <p class="gl-user-meta">
+                <span class="gl-badge<%= user.role === 'admin' ? ' gl-badge--admin' : '' %>"><%= user.role === 'admin' ? 'admin' : 'usuário' %></span>
+                <span class="gl-badge<%= user.isActive ? '' : ' gl-badge--off' %>"><%= user.isActive ? 'ativo' : 'inativo' %></span>
+              </p>
+            <% } %>
+            <p class="gl-since">Desde <%= user.since %></p>
+          </li>
+        <% } %>
+      </ul>
+    <% } %>
+    <% if (pages.length > 1) { %>
+      <nav class="gl-pager" aria-label="Páginas">
+        <% for (const p of pages) { %>
+          <% if (p.current) { %><span aria-current="page"><%= p.number %></span><% } else { %><a href="<%= p.href %>"><%= p.number %></a><% } %>
+        <% } %>
+      </nav>
+    <% } %>
+  </main>
+</div>
+<%- include('partials/foot') %>

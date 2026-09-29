@@ -1,0 +1,16 @@
+<%- include('partials/head', { title: 'Ativar conta' }) %>
+<%- include('partials/card-top', { heading: 'Ativar conta' }) %>
+<% if (locals.invalidLink) { %>
+  <p class="gl-error" role="alert">Este link de ativação é inválido ou expirou.</p>
+  <a class="gl-btn gl-submit" href="/resend-activation">Pedir um novo link</a>
+<% } else { %>
+  <p class="gl-text">Confirme para ativar sua conta. Depois é só entrar com seu usuário e senha.</p>
+  <form class="gl-form" method="post" action="/activate">
+    <%- include('partials/csrf') %>
+    <input type="hidden" name="token" value="<%= token %>" />
+    <button type="submit" class="gl-btn">Ativar minha conta</button>
+  </form>
+<% } %>
+<p class="gl-footer"><a href="/login">Voltar ao login</a></p>
+<%- include('partials/card-bottom') %>
+<%- include('partials/foot') %>
