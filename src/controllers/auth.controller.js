@@ -12,6 +12,9 @@ const ACCESS_TOKEN_COOKIE = {
 
 async function register(req, res) {
   const user = await authService.register(req.body);
+  // O link de ativação sai depois da resposta: o cadastro não espera o SMTP, e
+  // uma falha no envio só vai para o log (a pessoa pode pedir o reenvio).
+  background.run('activation_email', () => authService.sendActivationLink(user));
   // O toJSON do model tira password e tokenVersion.
   res.status(201).json({ user });
 }
@@ -51,9 +54,33 @@ function forgotPassword(req, res) {
   res.status(200).json({ message: FORGOT_PASSWORD_MESSAGE });
 }
 
+const RESEND_ACTIVATION_MESSAGE =
+  'Se houver uma conta aguardando ativação com esse e-mail, você vai receber um novo link.';
+
+// Mesmo desenho do forgot: responde antes de procurar a conta.
+function resendActivation(req, res) {
+  const { email } = req.body;
+  background.run('activation_resend', () => authService.resendActivationLink(email));
+  res.status(200).json({ message: RESEND_ACTIVATION_MESSAGE });
+}
+
+async function activate(req, res) {
+  await authService.activateAccount(req.body);
+  res.status(200).json({ message: 'Conta ativada. Agora você já pode entrar.' });
+}
+
 async function resetPassword(req, res) {
   await authService.resetPassword(req.body);
   res.status(200).json({ message: 'Senha redefinida. Entre com a nova senha.' });
 }
 
-module.exports = { register, login, logout, logoutPage, forgotPassword, resetPassword };
+module.exports = {
+  register,
+  login,
+  logout,
+  logoutPage,
+  forgotPassword,
+  resetPassword,
+  activate,
+  resendActivation,
+};

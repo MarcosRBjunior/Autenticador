@@ -1,16 +1,15 @@
 const { isAuthenticated } = require('./auth');
 
 // Rotas liberadas sem token: método + caminho exatos (ou regex ancorada).
-// Qualquer coisa que não bata exatamente fica protegida. Algumas ainda não
-// existem (a ativação chega na US-17, as páginas na US-18) e respondem 404 até
-// lá.
+// Qualquer coisa que não bata exatamente fica protegida. As páginas ainda não
+// existem (chegam na US-18) e respondem 404 até lá.
 const PUBLIC_ROUTES = [
   ['GET', '/api/v1/health'],
   ['POST', '/api/v1/register'],
   ['POST', '/api/v1/login'],
   ['POST', '/api/v1/auth/forgot-password'],
   ['POST', '/api/v1/auth/reset-password'],
-  ['GET', /^\/api\/v1\/auth\/activate\/[^/]+$/],
+  ['POST', '/api/v1/auth/activate'],
   ['POST', '/api/v1/auth/resend-activation'],
   ['GET', '/login'],
   ['GET', '/register'],

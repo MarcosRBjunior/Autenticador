@@ -50,17 +50,32 @@ const loginLimiter = createRateLimiter({
   skipSuccessfulRequests: true,
 });
 
-// Todo pedido conta (a resposta é sempre 200). São dois limites: por IP +
-// e-mail, contra quem tenta encher a caixa de alguém de links; e só por IP,
-// contra quem dispara e-mails para todos os cadastrados, gastando a cota do
-// SMTP e a reputação do remetente.
-const forgotPasswordLimiters = [
+// Pedidos de link por e-mail ("esqueci a senha" e reenvio da ativação). Todo
+// pedido conta (a resposta é sempre 200). São dois limites: por IP + e-mail,
+// contra quem tenta encher a caixa de alguém de links; e só por IP, contra quem
+// dispara e-mails para todos os cadastrados, gastando a cota do SMTP e a
+// reputação do remetente. Cada rota ganha a própria contagem.
+const emailLinkLimiters = () => [
   createRateLimiter({ windowMs: HOUR, limit: 20 }),
   createRateLimiter({ windowMs: 15 * MINUTE, limit: 5, keyGenerator: accountKey('email') }),
 ];
 
-// Adivinhar o token é inviável (256 bits): este limite, folgado, só segura
-// quem martela a rota.
-const resetPasswordLimiter = createRateLimiter({ windowMs: 15 * MINUTE, limit: 10 });
+const forgotPasswordLimiters = emailLinkLimiters();
+const resendActivationLimiters = emailLinkLimiters();
 
-module.exports = { registerLimiter, loginLimiter, forgotPasswordLimiters, resetPasswordLimiter };
+// Rotas que recebem o token de um link (reset e ativação). Adivinhar o token é
+// inviável (256 bits): este limite, folgado, só segura quem martela a rota.
+// Cada rota ganha a própria contagem.
+const linkTokenLimiter = () => createRateLimiter({ windowMs: 15 * MINUTE, limit: 10 });
+
+const resetPasswordLimiter = linkTokenLimiter();
+const activateLimiter = linkTokenLimiter();
+
+module.exports = {
+  registerLimiter,
+  loginLimiter,
+  forgotPasswordLimiters,
+  resendActivationLimiters,
+  resetPasswordLimiter,
+  activateLimiter,
+};

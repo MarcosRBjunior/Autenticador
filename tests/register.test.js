@@ -1,6 +1,11 @@
 const request = require('supertest');
 const db = require('./helpers/db');
 const User = require('../src/models/User');
+const AuthToken = require('../src/models/AuthToken');
+const authTokenService = require('../src/services/AuthTokenService');
+const mailService = require('../src/services/MailService');
+const background = require('../src/utils/background');
+const { logger } = require('../src/utils/logger');
 const app = require('../src/app');
 
 // O app confia em 1 proxy nos testes (TRUST_PROXY=1 em setup-env.js), como na
@@ -18,11 +23,26 @@ const validBody = (overrides = {}) => ({
   ...overrides,
 });
 
+// O e-mail de ativação sai depois da resposta: espera essas tarefas antes de
+// limpar o banco, para um teste não deixar tokens para o seguinte.
+const settled = () => Promise.all(background.run.mock.results.map((result) => result.value));
+
+let sendActivationEmail;
+
 beforeAll(async () => {
   await db.connect();
   await User.init();
 });
-afterEach(db.clear);
+beforeEach(() => {
+  jest.spyOn(background, 'run');
+  // Passa pelo MailService de verdade (jsonTransport nos testes).
+  sendActivationEmail = jest.spyOn(mailService, 'sendActivationEmail');
+});
+afterEach(async () => {
+  await settled();
+  jest.restoreAllMocks();
+  await db.clear();
+});
 afterAll(db.close);
 
 describe('POST /api/v1/register', () => {
@@ -38,6 +58,66 @@ describe('POST /api/v1/register', () => {
     });
     expect(res.body.user).not.toHaveProperty('password');
     expect(res.body.user).not.toHaveProperty('tokenVersion');
+  });
+
+  describe('e-mail de ativação', () => {
+    it('manda o link de ativação, que vale 24 horas, para o e-mail cadastrado', async () => {
+      const res = await register(validBody({ email: 'Ana@Example.com' }));
+      await settled();
+
+      expect(sendActivationEmail).toHaveBeenCalledTimes(1);
+      expect(sendActivationEmail).toHaveBeenCalledWith({
+        user: expect.objectContaining({ id: res.body.user._id, email: 'ana@example.com' }),
+        token: expect.stringMatching(/^[a-f0-9]{64}$/),
+        expiresInMinutes: 1440,
+      });
+      await expect(
+        AuthToken.countDocuments({ userId: res.body.user._id, type: 'activation' }),
+      ).resolves.toBe(1);
+    });
+
+    it('responde sem esperar o envio do e-mail', async () => {
+      let finishSending;
+      sendActivationEmail.mockReturnValue(
+        new Promise((resolve) => {
+          finishSending = () => resolve(true);
+        }),
+      );
+
+      const res = await register(validBody());
+
+      expect(res.status).toBe(201);
+      finishSending();
+    });
+
+    // A pessoa pede o reenvio depois (POST /api/v1/auth/resend-activation).
+    it('se o link não puder ser gerado, a conta fica criada e o erro vai para o log', async () => {
+      const dbDown = new Error('banco fora do ar');
+      jest.spyOn(authTokenService, 'issue').mockRejectedValue(dbDown);
+      const logError = jest.spyOn(logger, 'error');
+
+      const res = await register(validBody());
+      await settled();
+
+      expect(res.status).toBe(201);
+      await expect(User.countDocuments({ username: 'ana' })).resolves.toBe(1);
+      expect(logError).toHaveBeenCalledWith(
+        { err: dbDown, task: 'activation_email' },
+        expect.any(String),
+      );
+    });
+
+    it('não manda nada quando o cadastro é recusado', async () => {
+      await register(validBody());
+      await settled();
+      sendActivationEmail.mockClear();
+
+      const res = await register(validBody({ username: 'outra' }));
+      await settled();
+
+      expect(res.status).toBe(409);
+      expect(sendActivationEmail).not.toHaveBeenCalled();
+    });
   });
 
   it('salva a senha como hash bcrypt', async () => {

@@ -22,7 +22,7 @@ async function register({ username, email, password }) {
 
   try {
     // role e isActive fixos aqui, nunca vindos da requisição. A conta nasce
-    // inativa; a ativação por e-mail entra na US-17.
+    // inativa e só entra depois de ativada pelo link do e-mail (D-02).
     return await userRepository.create({
       username,
       email,
@@ -62,8 +62,19 @@ async function logout(user) {
   await userRepository.incrementTokenVersion(user.id);
 }
 
-// RN-10: o link de reset vale 30 minutos.
+// RN-10: o link de ativação vale 24 horas; o de reset, 30 minutos.
+const ACTIVATION_TTL_MINUTES = 24 * 60;
 const PASSWORD_RESET_TTL_MINUTES = 30;
+
+// Gera o link de ativação (o novo substitui o anterior) e manda por e-mail.
+async function sendActivationLink(user) {
+  const token = await authTokenService.issue({
+    userId: user.id,
+    type: 'activation',
+    ttlMinutes: ACTIVATION_TTL_MINUTES,
+  });
+  await mailService.sendActivationEmail({ user, token, expiresInMinutes: ACTIVATION_TTL_MINUTES });
+}
 
 // Roda depois da resposta genérica do forgot, então quem pediu não fica sabendo
 // se o e-mail tem conta. O destinatário é o e-mail do usuário achado no banco.
@@ -83,23 +94,50 @@ async function requestPasswordReset(email) {
   });
 }
 
-const invalidResetToken = () =>
+// Roda depois da resposta genérica do reenvio. Só conta que ainda espera
+// ativação recebe o link; o novo substitui o anterior.
+async function resendActivationLink(email) {
+  const user = await userRepository.findByEmail(email);
+  if (!user || user.isActive) return;
+  await sendActivationLink(user);
+}
+
+const invalidLink = (what) =>
   new AppError(
     400,
     'TOKEN_INVALID_OR_EXPIRED',
-    'Link de redefinição inválido ou expirado. Peça um novo.',
+    `Link de ${what} inválido ou expirado. Peça um novo.`,
   );
+
+// O token é gasto na mesma operação que confere se ele vale. Uma conta já ativa
+// continua ativa (o link só serviu para isso).
+async function activateAccount({ token }) {
+  const userId = await authTokenService.consume({ token, type: 'activation' });
+  if (!userId) throw invalidLink('ativação');
+
+  const activated = await userRepository.activate(userId);
+  if (!activated) throw invalidLink('ativação');
+}
 
 // O token é gasto antes da troca: dois pedidos com o mesmo link não trocam a
 // senha duas vezes. Se a troca falhar depois disso, o usuário pede outro link.
 async function resetPassword({ token, newPassword }) {
   const userId = await authTokenService.consume({ token, type: 'password_reset' });
-  if (!userId) throw invalidResetToken();
+  if (!userId) throw invalidLink('redefinição');
 
   // Pelo save() do model: a senha vira hash e o tokenVersion sobe, o que
   // derruba os JWTs emitidos antes (RN-11). O reset não ativa a conta.
   const user = await userRepository.update(userId, { password: newPassword });
-  if (!user) throw invalidResetToken();
+  if (!user) throw invalidLink('redefinição');
 }
 
-module.exports = { register, login, logout, requestPasswordReset, resetPassword };
+module.exports = {
+  register,
+  login,
+  logout,
+  sendActivationLink,
+  resendActivationLink,
+  activateAccount,
+  requestPasswordReset,
+  resetPassword,
+};
