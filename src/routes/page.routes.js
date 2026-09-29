@@ -58,5 +58,7 @@ router.get('/admin', isAdmin, issueCsrf, adminPages.dashboard);
 router.post('/admin/users/:id/role', isAdmin, form, verifyCsrf, adminPages.changeRole);
 router.get('/admin/users/:id/edit', isAdmin, issueCsrf, adminPages.showEdit);
 router.post('/admin/users/:id', isAdmin, form, verifyCsrf, adminPages.update);
+router.get('/admin/users/:id/delete', isAdmin, issueCsrf, adminPages.showDelete);
+router.post('/admin/users/:id/delete', isAdmin, form, verifyCsrf, adminPages.remove);
 
 module.exports = router;

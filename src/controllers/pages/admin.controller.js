@@ -162,4 +162,31 @@ async function update(req, res) {
   return res.redirect(303, withState('/admin', state, { done: 'updated' }));
 }
 
-module.exports = { dashboard, changeRole, showEdit, update };
+async function showDelete(req, res) {
+  const id = userId(req);
+  const state = listState(req.query);
+  const user = await userService.getUser(req.user, id);
+  res.render('admin-delete', {
+    user: { id, username: user.username, email: user.email },
+    state,
+    backHref: withState('/admin', state),
+  });
+}
+
+// D-13: exclusão definitiva, levando os links pendentes da conta. O último
+// admin ativo não sai (RN-09).
+async function remove(req, res) {
+  const id = userId(req);
+  const state = listState(req.body);
+  try {
+    await userService.deleteUser(id);
+  } catch (err) {
+    if (err.code === 'LAST_ADMIN') {
+      return res.redirect(303, withState('/admin', state, { error: 'last-admin' }));
+    }
+    throw err;
+  }
+  return res.redirect(303, withState('/admin', state, { done: 'deleted' }));
+}
+
+module.exports = { dashboard, changeRole, showEdit, update, showDelete, remove };
