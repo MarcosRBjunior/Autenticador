@@ -12,6 +12,9 @@ const ACCESS_TOKEN_COOKIE = {
 
 async function register(req, res) {
   const user = await authService.register(req.body);
+  // O link de ativação sai depois da resposta: o cadastro não espera o SMTP, e
+  // uma falha no envio só vai para o log (a pessoa pode pedir o reenvio).
+  background.run('activation_email', () => authService.sendActivationLink(user));
   // O toJSON do model tira password e tokenVersion.
   res.status(201).json({ user });
 }

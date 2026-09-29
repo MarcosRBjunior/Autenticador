@@ -22,7 +22,7 @@ async function register({ username, email, password }) {
 
   try {
     // role e isActive fixos aqui, nunca vindos da requisição. A conta nasce
-    // inativa; a ativação por e-mail entra na US-17.
+    // inativa e só entra depois de ativada pelo link do e-mail (D-02).
     return await userRepository.create({
       username,
       email,
@@ -62,8 +62,19 @@ async function logout(user) {
   await userRepository.incrementTokenVersion(user.id);
 }
 
-// RN-10: o link de reset vale 30 minutos.
+// RN-10: o link de ativação vale 24 horas; o de reset, 30 minutos.
+const ACTIVATION_TTL_MINUTES = 24 * 60;
 const PASSWORD_RESET_TTL_MINUTES = 30;
+
+// Gera o link de ativação (o novo substitui o anterior) e manda por e-mail.
+async function sendActivationLink(user) {
+  const token = await authTokenService.issue({
+    userId: user.id,
+    type: 'activation',
+    ttlMinutes: ACTIVATION_TTL_MINUTES,
+  });
+  await mailService.sendActivationEmail({ user, token, expiresInMinutes: ACTIVATION_TTL_MINUTES });
+}
 
 // Roda depois da resposta genérica do forgot, então quem pediu não fica sabendo
 // se o e-mail tem conta. O destinatário é o e-mail do usuário achado no banco.
@@ -102,4 +113,11 @@ async function resetPassword({ token, newPassword }) {
   if (!user) throw invalidResetToken();
 }
 
-module.exports = { register, login, logout, requestPasswordReset, resetPassword };
+module.exports = {
+  register,
+  login,
+  logout,
+  sendActivationLink,
+  requestPasswordReset,
+  resetPassword,
+};
