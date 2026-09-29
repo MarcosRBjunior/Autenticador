@@ -54,6 +54,16 @@ function forgotPassword(req, res) {
   res.status(200).json({ message: FORGOT_PASSWORD_MESSAGE });
 }
 
+const RESEND_ACTIVATION_MESSAGE =
+  'Se houver uma conta aguardando ativação com esse e-mail, você vai receber um novo link.';
+
+// Mesmo desenho do forgot: responde antes de procurar a conta.
+function resendActivation(req, res) {
+  const { email } = req.body;
+  background.run('activation_resend', () => authService.resendActivationLink(email));
+  res.status(200).json({ message: RESEND_ACTIVATION_MESSAGE });
+}
+
 async function activate(req, res) {
   await authService.activateAccount(req.body);
   res.status(200).json({ message: 'Conta ativada. Agora você já pode entrar.' });
@@ -72,4 +82,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   activate,
+  resendActivation,
 };

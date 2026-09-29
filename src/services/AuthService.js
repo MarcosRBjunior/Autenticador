@@ -94,6 +94,14 @@ async function requestPasswordReset(email) {
   });
 }
 
+// Roda depois da resposta genérica do reenvio. Só conta que ainda espera
+// ativação recebe o link; o novo substitui o anterior.
+async function resendActivationLink(email) {
+  const user = await userRepository.findByEmail(email);
+  if (!user || user.isActive) return;
+  await sendActivationLink(user);
+}
+
 const invalidLink = (what) =>
   new AppError(
     400,
@@ -128,6 +136,7 @@ module.exports = {
   login,
   logout,
   sendActivationLink,
+  resendActivationLink,
   activateAccount,
   requestPasswordReset,
   resetPassword,

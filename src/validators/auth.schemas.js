@@ -47,6 +47,8 @@ const loginSchema = z.object({
 
 const forgotPasswordSchema = z.object({ email });
 
+const resendActivationSchema = z.object({ email });
+
 // Token dos links de reset e de ativação. Só precisa ser texto (um objeto como
 // {"$ne": null} para aqui); se ele vale ou não, quem diz é o banco.
 const linkToken = z
@@ -66,4 +68,5 @@ module.exports = {
   forgotPasswordSchema,
   resetPasswordSchema,
   activateSchema,
+  resendActivationSchema,
 };
