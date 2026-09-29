@@ -8,14 +8,10 @@ describe('mailTemplates', () => {
     ['activation', ACTIVATION_URL, /ativ/i],
     ['passwordReset', RESET_URL, /senha/i],
   ])('%s', (name, url, subjectPattern) => {
-    const email = templates[name]({ username: 'ana', url, expiresInMinutes: 30 });
+    const email = templates[name]({ url, expiresInMinutes: 30 });
 
     it('tem assunto próprio', () => {
       expect(email.subject).toMatch(subjectPattern);
-    });
-
-    it('cumprimenta o usuário pelo nome', () => {
-      expect(email.text).toContain('ana');
     });
 
     // Sozinho na linha, o cliente de e-mail transforma em link sem cortá-lo.
@@ -34,7 +30,7 @@ describe('mailTemplates', () => {
     [60, '1 hora'],
     [1440, '24 horas'],
   ])('escreve %i min de validade como "%s"', (expiresInMinutes, expected) => {
-    const { text } = templates.passwordReset({ username: 'ana', url: RESET_URL, expiresInMinutes });
+    const { text } = templates.passwordReset({ url: RESET_URL, expiresInMinutes });
 
     expect(text).toContain(`${expected}.`);
   });

@@ -108,7 +108,7 @@ function sendActivationEmail({ user, token, expiresInMinutes }) {
   return send({
     kind: 'activation',
     user,
-    ...templates.activation({ username: user.username, url, expiresInMinutes }),
+    ...templates.activation({ url, expiresInMinutes }),
   });
 }
 
@@ -117,7 +117,7 @@ function sendPasswordResetEmail({ user, token, expiresInMinutes }) {
   return send({
     kind: 'password_reset',
     user,
-    ...templates.passwordReset({ username: user.username, url, expiresInMinutes }),
+    ...templates.passwordReset({ url, expiresInMinutes }),
   });
 }
 

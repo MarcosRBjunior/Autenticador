@@ -124,6 +124,24 @@ describe('MailService', () => {
       expect(sentMessage(transport).text).toContain('30 minutos');
     });
 
+    // Quem se cadastra escolhe o username e pode usar o e-mail de outra pessoa:
+    // "Olá, secure-login.evil.io!" sairia do nosso remetente como um link.
+    it.each(['sendActivationEmail', 'sendPasswordResetEmail'])(
+      '%s não repete o username escolhido no cadastro',
+      async (method) => {
+        const { mailService, nodemailer } = loadMailService();
+        const transport = watchTransport(nodemailer);
+
+        await mailService[method]({
+          user: { ...user, username: 'secure-login.evil.io' },
+          token: 'tok3n',
+          expiresInMinutes: 30,
+        });
+
+        expect(sentMessage(transport).text).not.toContain('evil.io');
+      },
+    );
+
     it('codifica o token no link', async () => {
       const { mailService, nodemailer } = loadMailService();
       const transport = watchTransport(nodemailer);

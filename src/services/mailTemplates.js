@@ -1,5 +1,7 @@
 // E-mails em texto simples. O link fica sozinho na linha para o cliente de
-// e-mail reconhecê-lo inteiro.
+// e-mail reconhecê-lo inteiro. Nada escolhido no cadastro entra no texto: quem
+// se cadastra pode usar o e-mail de outra pessoa, e um username como
+// "secure-login.evil.io" viraria link numa mensagem do nosso remetente.
 
 function formatValidity(minutes) {
   if (minutes % 60 === 0) {
@@ -9,11 +11,11 @@ function formatValidity(minutes) {
   return `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
 }
 
-function activation({ username, url, expiresInMinutes }) {
+function activation({ url, expiresInMinutes }) {
   return {
     subject: 'Ative sua conta',
     text: [
-      `Olá, ${username}!`,
+      'Olá!',
       '',
       'Para ativar sua conta, abra o link abaixo:',
       '',
@@ -26,11 +28,11 @@ function activation({ username, url, expiresInMinutes }) {
   };
 }
 
-function passwordReset({ username, url, expiresInMinutes }) {
+function passwordReset({ url, expiresInMinutes }) {
   return {
     subject: 'Redefina sua senha',
     text: [
-      `Olá, ${username}!`,
+      'Olá!',
       '',
       'Recebemos um pedido para redefinir a senha da sua conta. Para escolher uma nova senha, abra o link abaixo:',
       '',
