@@ -410,13 +410,21 @@ body {
   font-size: 14px;
   font-weight: 500;
 }
-.gl-session a {
+.gl-session button {
   padding: 8px 16px;
   border-radius: 7px;
   background: var(--brand-navy);
   color: var(--white);
   font-weight: 700;
   text-decoration: none;
+}
+.gl-session form {
+  margin: 0;
+}
+.gl-session button {
+  border: 0;
+  font: 700 14px var(--font-sans);
+  cursor: pointer;
 }
 .gl-main {
   max-width: 1200px;
@@ -562,4 +570,111 @@ body {
   .gl-search input {
     flex: 1;
   }
+}
+
+/* Painel admin: contadores e tabela de vidro com as ações por linha. */
+.gl-stats {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+.gl-stat {
+  padding: 16px 22px;
+  border-radius: 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.gl-stat strong {
+  font-size: 34px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.gl-stat span {
+  font-size: 15px;
+  opacity: 0.85;
+}
+.gl-panel {
+  margin-top: 24px;
+  padding: 20px 24px;
+  border-radius: 22px;
+}
+.gl-panel h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.gl-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+.gl-table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.gl-table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.gl-table td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  font-weight: 500;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.gl-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+.gl-actions form {
+  margin: 0;
+}
+.gl-action {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(0, 52, 101, 0.85);
+  color: var(--white);
+  font: 700 12px var(--font-sans);
+  text-decoration: none;
+  cursor: pointer;
+}
+.gl-action:hover {
+  filter: brightness(1.12);
+}
+.gl-action:focus-visible {
+  outline: 2px solid var(--white);
+  outline-offset: 2px;
+}
+.gl-action--danger {
+  background: rgba(163, 20, 58, 0.9);
+}
+.gl-you {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+.gl-btn--danger {
+  background: #a3143a;
+}
+.gl-btn--ghost {
+  margin-top: 12px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }

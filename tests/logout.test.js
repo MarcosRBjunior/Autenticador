@@ -1,6 +1,7 @@
 const request = require('supertest');
 const db = require('./helpers/db');
-const { createUserWithToken } = require('./helpers/auth');
+const { browser, csrfFrom, textOf } = require('./helpers/browser');
+const { createUser, tokenFor, createUserWithToken } = require('./helpers/auth');
 const User = require('../src/models/User');
 const app = require('../src/app');
 
@@ -110,5 +111,52 @@ describe('GET /logout', () => {
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/login');
     expectCookieCleared(res);
+  });
+});
+
+describe('POST /logout (página)', () => {
+  const loggedIn = (user) => {
+    const page = browser(app);
+    page.cookies.set('access_token', tokenFor(user));
+    return page;
+  };
+
+  it('com o token do formulário, sai, apaga o cookie e derruba a sessão', async () => {
+    const user = await createUser();
+    const jwt = tokenFor(user);
+    const page = loggedIn(user);
+
+    const res = await page.submit('/logout', {}, { from: '/users' });
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/login');
+    expect(page.cookies.has('access_token')).toBe(false);
+    const me = await request(app).get('/api/v1/me').set('Authorization', `Bearer ${jwt}`);
+    expect(me.status).toBe(401);
+  });
+
+  it('com o JWT já inválido e o token CSRF válido, sai para o /login', async () => {
+    const user = await createUser();
+    const page = loggedIn(user);
+    const csrf = csrfFrom((await page.get('/users')).text);
+    page.cookies.set('access_token', 'jwt-invalido');
+
+    const res = await page.post('/logout', { _csrf: csrf });
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/login');
+    expectCookieCleared(res);
+  });
+
+  it('sem o token CSRF: 403 e a sessão continua', async () => {
+    const user = await createUser();
+    const page = loggedIn(user);
+    await page.get('/users');
+
+    const res = await page.post('/logout', {});
+
+    expect(res.status).toBe(403);
+    expect(textOf(res.text)).toContain('A página expirou');
+    expect((await page.get('/users')).status).toBe(200);
   });
 });

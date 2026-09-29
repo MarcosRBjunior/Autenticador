@@ -6,6 +6,9 @@
   </nav>
   <div class="gl-session">
     <span><%= viewer.username %></span>
-    <a href="/logout">Sair</a>
+    <form method="post" action="/logout">
+      <%- include('csrf') %>
+      <button type="submit">Sair</button>
+    </form>
   </div>
 </header>

@@ -5,7 +5,8 @@ const session = require('../controllers/pages/session.controller');
 const activation = require('../controllers/pages/activation.controller');
 const recovery = require('../controllers/pages/recovery.controller');
 const usersPage = require('../controllers/pages/users.controller');
-const { identifyUser } = require('../middlewares/auth');
+const adminPages = require('../controllers/pages/admin.controller');
+const { identifyUser, isAdmin } = require('../middlewares/auth');
 const { issueCsrf, verifyCsrf } = require('../middlewares/csrf');
 const {
   loginLimiter,
@@ -44,8 +45,20 @@ router.post('/reset-password', form, verifyCsrf, resetPasswordLimiter, recovery.
 
 // Sai para o /login mesmo com o token já inválido.
 router.get('/logout', identifyUser, authController.logoutPage);
+// O botão "Sair" da barra: POST com CSRF. O GET acima continua porque o PDF pede.
+router.post('/logout', form, verifyCsrf, identifyUser, authController.logoutPage);
 
 // Logada: o guard garante req.user e manda para o /login sem sessão.
-router.get('/users', usersPage.list);
+router.get('/users', issueCsrf, usersPage.list);
+
+// Só admin: o guard garantiu a sessão e o isAdmin vem antes de ler formulário
+// ou CSRF (quem não é admin recebe 403 direto). Sem rate limit: só um admin
+// logado chega aqui.
+router.get('/admin', isAdmin, issueCsrf, adminPages.dashboard);
+router.post('/admin/users/:id/role', isAdmin, form, verifyCsrf, adminPages.changeRole);
+router.get('/admin/users/:id/edit', isAdmin, issueCsrf, adminPages.showEdit);
+router.post('/admin/users/:id', isAdmin, form, verifyCsrf, adminPages.update);
+router.get('/admin/users/:id/delete', isAdmin, issueCsrf, adminPages.showDelete);
+router.post('/admin/users/:id/delete', isAdmin, form, verifyCsrf, adminPages.remove);
 
 module.exports = router;

@@ -27,6 +27,7 @@ describe('isPublicRoute', () => {
     // Logout responde 204 (ou redireciona) até com token inválido.
     ['POST', '/api/v1/logout'],
     ['GET', '/logout'],
+    ['POST', '/logout'],
   ])('libera %s %s', (method, path) => {
     expect(isPublicRoute(req(method, path))).toBe(true);
   });

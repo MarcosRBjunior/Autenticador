@@ -1,0 +1,14 @@
+<%- include('partials/head', { title: 'Excluir usuário' }) %>
+<%- include('partials/card-top', { heading: 'Excluir usuário' }) %>
+<p class="gl-text">
+  Excluir <strong><%= user.username %></strong> (<%= user.email %>)? A conta e os links pendentes
+  dela serão apagados. Isso não pode ser desfeito.
+</p>
+<form class="gl-form" method="post" action="/admin/users/<%= user.id %>/delete">
+  <%- include('partials/csrf') %>
+  <%- include('partials/list-state') %>
+  <button type="submit" class="gl-btn gl-btn--danger">Excluir conta</button>
+</form>
+<a class="gl-btn gl-btn--ghost" href="<%= backHref %>">Cancelar</a>
+<%- include('partials/card-bottom') %>
+<%- include('partials/foot') %>

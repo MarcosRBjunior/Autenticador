@@ -1,5 +1,5 @@
 // Sobe o app para o Playwright: Mongo em memória, e-mail sem rede
-// (NODE_ENV=test usa o jsonTransport) e uma usuária ativa. Só este servidor
+// (NODE_ENV=test usa o jsonTransport), uma usuária ativa e um admin. Só este servidor
 // tem a rota /__e2e/last-activation-token?email=..., que entrega o último
 // token de ativação enviado para aquele e-mail.
 const { MongoMemoryServer } = require('mongodb-memory-server');
@@ -22,6 +22,13 @@ async function start() {
     username: 'ana',
     email: 'ana@example.com',
     password: 'senha-forte-123',
+    isActive: true,
+  });
+  await User.create({
+    username: 'root',
+    email: 'root@example.com',
+    password: 'senha-forte-123',
+    role: 'admin',
     isActive: true,
   });
 

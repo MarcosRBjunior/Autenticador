@@ -1,11 +1,5 @@
 const { test, expect } = require('@playwright/test');
-
-async function login(page, username, password) {
-  await page.goto('/login');
-  await page.getByLabel('Usuário ou e-mail').fill(username);
-  await page.getByLabel('Senha', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Entrar' }).click();
-}
+const { login } = require('./helpers');
 
 test('login, lista de usuários e saída', async ({ page }) => {
   await login(page, 'ana', 'senha-forte-123');
@@ -14,7 +8,7 @@ test('login, lista de usuários e saída', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Usuários' })).toBeVisible();
   await expect(page.getByRole('listitem').filter({ hasText: 'ana' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Sair' }).click();
+  await page.getByRole('button', { name: 'Sair' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto('/users');
   await expect(page).toHaveURL(/\/login$/);

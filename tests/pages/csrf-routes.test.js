@@ -17,6 +17,7 @@ describe('CSRF em todos os POSTs de página', () => {
     ['/resend-activation', '/activate'],
     ['/forgot-password', '/forgot-password'],
     ['/reset-password', '/reset-password?token=abc'],
+    ['/logout', '/login'],
   ])('POST %s sem _csrf: 403', async (path, from) => {
     const page = browser(app, { ip: newIp() });
     await page.get(from);

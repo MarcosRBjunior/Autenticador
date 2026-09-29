@@ -19,10 +19,10 @@ function formApp() {
 }
 
 describe('CSRF', () => {
-  it('a página grava o cookie csrf httpOnly, Secure e SameSite=Lax', async () => {
+  it('a página grava o cookie __Host-csrf httpOnly, Secure e SameSite=Lax', async () => {
     const res = await browser(formApp()).get('/form');
 
-    const cookie = res.headers['set-cookie'].find((c) => c.startsWith('csrf='));
+    const cookie = res.headers['set-cookie'].find((c) => c.startsWith('__Host-csrf='));
     expect(cookie).toMatch(/HttpOnly/);
     expect(cookie).toMatch(/Secure/);
     expect(cookie).toMatch(/SameSite=Lax/);
@@ -73,10 +73,10 @@ describe('CSRF', () => {
 
   it('troca um cookie adulterado por um novo', async () => {
     const page = browser(formApp());
-    page.cookies.set('csrf', 'nao-hex');
+    page.cookies.set('__Host-csrf', 'nao-hex');
 
     await page.get('/form');
 
-    expect(page.cookies.get('csrf')).toMatch(/^[a-f0-9]{64}$/);
+    expect(page.cookies.get('__Host-csrf')).toMatch(/^[a-f0-9]{64}$/);
   });
 });
