@@ -4,6 +4,7 @@ const registration = require('../controllers/pages/register.controller');
 const session = require('../controllers/pages/session.controller');
 const activation = require('../controllers/pages/activation.controller');
 const recovery = require('../controllers/pages/recovery.controller');
+const usersPage = require('../controllers/pages/users.controller');
 const { identifyUser } = require('../middlewares/auth');
 const { issueCsrf, verifyCsrf } = require('../middlewares/csrf');
 const {
@@ -43,5 +44,8 @@ router.post('/reset-password', form, verifyCsrf, resetPasswordLimiter, recovery.
 
 // Sai para o /login mesmo com o token já inválido.
 router.get('/logout', identifyUser, authController.logoutPage);
+
+// Logada: o guard garante req.user e manda para o /login sem sessão.
+router.get('/users', usersPage.list);
 
 module.exports = router;

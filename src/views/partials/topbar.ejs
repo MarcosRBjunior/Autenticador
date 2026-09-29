@@ -1,0 +1,11 @@
+<header class="gl-topbar gl-glass">
+  <p class="gl-logo">Auth System</p>
+  <nav class="gl-nav" aria-label="Principal">
+    <a href="/users"<% if (active === 'users') { %> aria-current="page"<% } %>>Usuários</a>
+    <% if (viewer.isAdmin) { %><a href="/admin"<% if (active === 'admin') { %> aria-current="page"<% } %>>Admin</a><% } %>
+  </nav>
+  <div class="gl-session">
+    <span><%= viewer.username %></span>
+    <a href="/logout">Sair</a>
+  </div>
+</header>
