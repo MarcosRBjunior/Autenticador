@@ -124,6 +124,90 @@ describe('GET /admin', () => {
   );
 });
 
+describe('GET /admin com várias páginas', () => {
+  // 22 contas (o admin e mais 21, na ordem de criação): a página 2 tem duas
+  // contas comuns, com todas as ações.
+  async function withTwoPages() {
+    const admin = await createUser({ username: 'root', role: 'admin' });
+    for (let i = 0; i < 21; i += 1) await createUser();
+    return admin;
+  }
+
+  it('a página 2 tem o pager e as ações levam page=2', async () => {
+    const admin = await withTwoPages();
+
+    const html = (await sessionOf(admin).get('/admin?page=2')).text;
+
+    expect(html).toContain('<span aria-current="page">2</span>');
+    expect(html).toMatch(/href="\/admin\/users\/[a-f0-9]{24}\/edit\?page=2"/);
+    expect(html).toMatch(/href="\/admin\/users\/[a-f0-9]{24}\/delete\?page=2"/);
+    expect(html).toContain('<input type="hidden" name="page" value="2" />');
+  });
+
+  it('depois da última página, vai para a última mantendo o aviso', async () => {
+    const admin = await withTwoPages();
+    const page = sessionOf(admin);
+
+    const res = await page.get('/admin?page=9&done=deleted');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/admin?page=2&done=deleted');
+    const followed = await page.get(res.headers.location);
+    expect(textOf(followed.text)).toContain('Usuário excluído.');
+  });
+
+  it('mantém a busca ao voltar para a última página', async () => {
+    const admin = await createUser({ username: 'root', role: 'admin' });
+    for (let i = 0; i < 21; i += 1) await createUser({ username: `ana${i}` });
+
+    const res = await sessionOf(admin).get('/admin?search=ana&page=9&error=last-admin');
+
+    expect(res.headers.location).toBe('/admin?search=ana&page=2&error=last-admin');
+  });
+
+  it('não leva um código desconhecido para o redirecionamento', async () => {
+    const admin = await withTwoPages();
+
+    const res = await sessionOf(admin).get(
+      `/admin?page=9&done=${encodeURIComponent('<script>')}&error=__proto__`,
+    );
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/admin?page=2');
+  });
+});
+
+describe('usuário comum em todas as rotas do painel', () => {
+  it.each([
+    ['GET', '/admin'],
+    ['POST', '/admin/users/:id/role'],
+    ['GET', '/admin/users/:id/edit'],
+    ['POST', '/admin/users/:id'],
+    ['GET', '/admin/users/:id/delete'],
+    ['POST', '/admin/users/:id/delete'],
+  ])('%s %s: 403 e nada muda', async (method, route) => {
+    const user = await createUser({ username: 'bia' });
+    const target = await createUser({ username: 'caio' });
+    const path = route.replace(':id', target.id);
+    const page = sessionOf(user);
+
+    let res;
+    if (method === 'GET') {
+      res = await page.get(path);
+    } else {
+      // Token CSRF válido: o 403 tem de vir do isAdmin, não do CSRF.
+      res = await page.submit(path, { role: 'admin', username: 'novo' }, { from: '/users' });
+    }
+
+    expect(res.status).toBe(403);
+    expect(textOf(res.text)).toContain('Sem permissão');
+    const after = await User.findById(target._id).lean();
+    expect(after).not.toBeNull();
+    expect(after.role).toBe('user');
+    expect(after.username).toBe('caio');
+  });
+});
+
 describe('POST /admin/users/:id/role', () => {
   it('promove a conta e volta ao painel com o aviso', async () => {
     const admin = await createUser({ username: 'root', role: 'admin' });

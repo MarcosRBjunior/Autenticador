@@ -62,6 +62,15 @@ async function dashboard(req, res) {
     }),
   ]);
 
+  // Excluir a única conta da última página deixa a página pedida vazia: volta
+  // para a última, com a busca e só o aviso de um código conhecido.
+  if (result.totalPages > 0 && state.page > result.totalPages) {
+    const extra = {};
+    if (pick(NOTICES, req.query.done)) extra.done = req.query.done;
+    if (pick(ERRORS, req.query.error)) extra.error = req.query.error;
+    return res.redirect(withState('/admin', { ...state, page: result.totalPages }, extra));
+  }
+
   const users = result.data.map((user) => {
     const id = String(user._id);
     return {
@@ -76,7 +85,7 @@ async function dashboard(req, res) {
     };
   });
 
-  res.render('admin', {
+  return res.render('admin', {
     viewer: { username: req.user.username, isAdmin: true },
     stats,
     users,
