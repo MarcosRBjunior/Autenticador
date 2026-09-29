@@ -94,7 +94,9 @@ async function send({ kind, user, subject, text }) {
 }
 
 function sendActivationEmail({ user, token, expiresInMinutes }) {
-  const url = `${env.APP_URL}/api/v1/auth/activate/${encodeURIComponent(token)}`;
+  // Página que confirma com um POST: scanners de link dos provedores de e-mail
+  // abrem o link (GET) sozinhos e não podem ativar a conta no lugar do dono.
+  const url = `${env.APP_URL}/activate?token=${encodeURIComponent(token)}`;
   return send({
     kind: 'activation',
     user,

@@ -1,6 +1,6 @@
 const templates = require('../src/services/mailTemplates');
 
-const ACTIVATION_URL = 'http://localhost:3000/api/v1/auth/activate/abc123';
+const ACTIVATION_URL = 'http://localhost:3000/activate?token=abc123';
 const RESET_URL = 'http://localhost:3000/reset-password?token=abc123';
 
 describe('mailTemplates', () => {

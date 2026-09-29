@@ -84,7 +84,7 @@ afterEach(() => {
 
 describe('MailService', () => {
   describe('mensagens', () => {
-    it('manda a ativação para o e-mail do usuário, com o link da API', async () => {
+    it('manda a ativação para o e-mail do usuário, com o link da página de ativação', async () => {
       const { mailService, nodemailer } = loadMailService();
       const transport = watchTransport(nodemailer);
 
@@ -99,7 +99,7 @@ describe('MailService', () => {
         from: 'Auth System <no-reply@example.com>',
         to: 'ana@example.com',
         subject: expect.stringMatching(/ativ/i),
-        text: expect.stringContaining('\nhttp://localhost:3000/api/v1/auth/activate/tok3n\n'),
+        text: expect.stringContaining('\nhttp://localhost:3000/activate?token=tok3n\n'),
       });
       expect(sentMessage(transport).text).toContain('24 horas');
     });
@@ -171,7 +171,7 @@ describe('MailService', () => {
       });
       expect(sentMessage(transport)).toMatchObject({
         from: 'Auth System <no-reply@auth.example.com>',
-        text: expect.stringContaining('\nhttps://auth.example.com/api/v1/auth/activate/tok3n\n'),
+        text: expect.stringContaining('\nhttps://auth.example.com/activate?token=tok3n\n'),
       });
       expect(logger.info).toHaveBeenCalledWith(
         { kind: 'activation', userId: user.id },
