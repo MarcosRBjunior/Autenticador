@@ -16,6 +16,10 @@ describe('isPublicRoute', () => {
     ['POST', '/login'],
     ['GET', '/register'],
     ['POST', '/register'],
+    ['GET', '/activate'],
+    ['POST', '/activate'],
+    ['GET', '/resend-activation'],
+    ['POST', '/resend-activation'],
     ['GET', '/forgot-password'],
     ['GET', '/reset-password'],
     // Logout responde 204 (ou redireciona) até com token inválido.

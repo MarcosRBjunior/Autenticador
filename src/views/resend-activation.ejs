@@ -1,0 +1,12 @@
+<%- include('partials/head', { title: 'Reenviar ativação' }) %>
+<%- include('partials/card-top', { heading: 'Reenviar ativação' }) %>
+<%- include('partials/messages') %>
+<p class="gl-text">Informe o e-mail da conta. Se ela ainda não foi ativada, mandamos um link novo, válido por 24 horas.</p>
+<form class="gl-form" method="post" action="/resend-activation" novalidate>
+  <%- include('partials/csrf') %>
+  <%- include('partials/field', { name: 'email', label: 'E-mail', type: 'email', autocomplete: 'email', value: values.email }) %>
+  <button type="submit" class="gl-btn gl-submit">Enviar link</button>
+</form>
+<p class="gl-footer"><a href="/login">Voltar ao login</a></p>
+<%- include('partials/card-bottom') %>
+<%- include('partials/foot') %>

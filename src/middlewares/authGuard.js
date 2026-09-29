@@ -19,6 +19,10 @@ const PUBLIC_ROUTES = [
   ['POST', '/login'],
   ['GET', '/register'],
   ['POST', '/register'],
+  ['GET', '/activate'],
+  ['POST', '/activate'],
+  ['GET', '/resend-activation'],
+  ['POST', '/resend-activation'],
   ['GET', '/forgot-password'],
   ['GET', '/reset-password'],
   // O logout identifica o usuário por conta própria (identifyUser) e sai com
