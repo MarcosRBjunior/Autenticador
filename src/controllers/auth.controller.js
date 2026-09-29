@@ -45,7 +45,9 @@ const FORGOT_PASSWORD_MESSAGE =
 // Responde antes de procurar o usuário: a resposta e o tempo dela são os mesmos
 // com ou sem conta, e ninguém espera o SMTP.
 function forgotPassword(req, res) {
-  background.run('password_reset_request', () => authService.requestPasswordReset(req.body.email));
+  // Só o e-mail vai para a tarefa, não a requisição inteira.
+  const { email } = req.body;
+  background.run('password_reset_request', () => authService.requestPasswordReset(email));
   res.status(200).json({ message: FORGOT_PASSWORD_MESSAGE });
 }
 
