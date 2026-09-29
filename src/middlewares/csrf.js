@@ -5,7 +5,9 @@ const AppError = require('../utils/AppError');
 // Token de duplo envio assinado (OWASP): o cookie guarda um valor aleatório e o
 // formulário leva a assinatura dele. Outro site não lê o cookie da vítima nem
 // sabe assinar, então não monta um formulário que passe.
-const COOKIE = 'csrf';
+// O prefixo __Host- exige Secure, path=/ e nenhum Domain: um subdomínio não
+// consegue plantar o cookie.
+const COOKIE = '__Host-csrf';
 const COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: 'lax', path: '/' };
 const VALUE = /^[a-f0-9]{64}$/;
 
