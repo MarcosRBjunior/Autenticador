@@ -36,7 +36,9 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Tudo abaixo exige token, exceto a allowlist de middlewares/authGuard.js.
-// Vem antes do 404 de propósito: rota inexistente sem token também dá 401.
+// Vem antes do 404 de propósito: rota inexistente sem token não vaza que ela
+// não existe. Na /api dá 401 JSON; fora dela, a página sem sessão redireciona
+// para /login.
 app.use(authGuard);
 
 app.use('/api/v1', apiRoutes);

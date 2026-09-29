@@ -45,7 +45,11 @@ function verifyCsrf(req, res, next) {
     typeof sent === 'string' &&
     sameText(sign(value), sent);
   if (!valid) {
-    throw new AppError(403, 'CSRF_INVALID', 'A página expirou. Recarregue e tente de novo.');
+    throw new AppError(
+      403,
+      'CSRF_INVALID',
+      'A página expirou. Volte ao formulário e envie de novo.',
+    );
   }
   tokenFor(req, res);
   next();

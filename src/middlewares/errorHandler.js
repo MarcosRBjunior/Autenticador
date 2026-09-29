@@ -54,7 +54,7 @@ const PAGE_ERRORS = {
 const PAGE_ERRORS_BY_CODE = {
   CSRF_INVALID: {
     title: 'A página expirou',
-    message: 'Recarregue a página e tente de novo.',
+    message: 'Volte ao formulário e envie de novo.',
   },
 };
 

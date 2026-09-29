@@ -23,6 +23,13 @@ afterEach(db.clear);
 afterAll(db.close);
 
 describe('proteção global de rotas', () => {
+  it.each(['/API/v1/nada', '/api'])('%s sem token: 401 JSON', async (path) => {
+    const res = await request(app).get(path);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHENTICATED');
+  });
+
   it('responde 401 para rota fora da allowlist sem token', async () => {
     const res = await request(app).get('/api/v1/qualquer-coisa');
 

@@ -4,8 +4,10 @@ const { isApiRequest } = require('../utils/requestKind');
 const { clearSessionCookie } = require('../utils/sessionCookie');
 
 // Rotas liberadas sem token: método + caminho exatos (ou regex ancorada).
-// Qualquer coisa que não bata exatamente fica protegida. As páginas ainda não
-// existem (chegam na US-18) e respondem 404 até lá.
+// Inclui as rotas públicas da API e as páginas de acesso (login, cadastro,
+// ativação, recuperação de senha). Qualquer coisa que não bata exatamente fica
+// protegida e exige sessão: 401 JSON na /api, redirecionamento para /login nas
+// páginas.
 const PUBLIC_ROUTES = [
   ['GET', '/'],
   ['GET', '/api/v1/health'],
