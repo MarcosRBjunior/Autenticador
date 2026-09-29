@@ -85,4 +85,13 @@ describe('GET /users', () => {
 
     expect(res.headers['cache-control']).toBe('no-store');
   });
+
+  it('a barra tem o formulário de sair com o token CSRF', async () => {
+    const viewer = await createUser();
+
+    const res = await sessionOf(viewer).get('/users');
+
+    expect(res.text).toMatch(/<form[^>]*method="post"[^>]*action="\/logout"/);
+    expect(res.text).toContain('name="_csrf"');
+  });
 });

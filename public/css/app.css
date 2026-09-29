@@ -410,13 +410,22 @@ body {
   font-size: 14px;
   font-weight: 500;
 }
-.gl-session a {
+.gl-session a,
+.gl-session button {
   padding: 8px 16px;
   border-radius: 7px;
   background: var(--brand-navy);
   color: var(--white);
   font-weight: 700;
   text-decoration: none;
+}
+.gl-session form {
+  margin: 0;
+}
+.gl-session button {
+  border: 0;
+  font: 700 14px var(--font-sans);
+  cursor: pointer;
 }
 .gl-main {
   max-width: 1200px;

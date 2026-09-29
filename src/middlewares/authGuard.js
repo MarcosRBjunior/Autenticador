@@ -33,6 +33,7 @@ const PUBLIC_ROUTES = [
   // sucesso mesmo com token ausente, expirado ou já invalidado.
   ['POST', '/api/v1/logout'],
   ['GET', '/logout'],
+  ['POST', '/logout'],
 ];
 
 function isPublicRoute(req) {

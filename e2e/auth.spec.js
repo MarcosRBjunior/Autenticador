@@ -14,7 +14,7 @@ test('login, lista de usuários e saída', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Usuários' })).toBeVisible();
   await expect(page.getByRole('listitem').filter({ hasText: 'ana' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Sair' }).click();
+  await page.getByRole('button', { name: 'Sair' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto('/users');
   await expect(page).toHaveURL(/\/login$/);
