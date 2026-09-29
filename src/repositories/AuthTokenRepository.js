@@ -1,13 +1,27 @@
 const AuthToken = require('../models/AuthToken');
 
-function create(data) {
-  return AuthToken.create(data);
+const DUPLICATE_KEY = 11000;
+
+function upsertUnused({ userId, type, tokenHash, expiresAt }) {
+  return AuthToken.findOneAndUpdate(
+    { userId, type, usedAt: null },
+    { $set: { tokenHash, expiresAt } },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+  );
 }
 
-// Os tokens usados ficam (o TTL do Mongo apaga depois); só os que ainda
-// valeriam saem.
-async function deleteUnused({ userId, type }) {
-  await AuthToken.deleteMany({ userId, type, usedAt: null });
+// Grava o token novo no lugar do não usado que o usuário tiver daquele tipo,
+// numa operação só: uma falha na gravação não apaga o link que existia. Dois
+// upserts simultâneos que não acham nada tentam inserir os dois, e o índice
+// único parcial (ver models/AuthToken.js) barra o segundo; na nova tentativa
+// ele acha o documento do primeiro e o substitui.
+async function replaceUnused(data) {
+  try {
+    return await upsertUnused(data);
+  } catch (err) {
+    if (err?.code !== DUPLICATE_KEY) throw err;
+    return upsertUnused(data);
+  }
 }
 
 // Confere e marca como usado numa operação só: dois pedidos com o mesmo token
@@ -27,4 +41,4 @@ async function deleteByUserId(userId) {
   return deletedCount;
 }
 
-module.exports = { create, deleteUnused, consume, deleteByUserId };
+module.exports = { replaceUnused, consume, deleteByUserId };

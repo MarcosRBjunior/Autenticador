@@ -18,4 +18,11 @@ const authTokenSchema = new mongoose.Schema(
 // ~60 s, então as consultas ainda precisam filtrar por expiresAt > agora).
 authTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+// No máximo um token ainda não usado por usuário e tipo: só o link mais recente
+// vale, mesmo com pedidos simultâneos. Os usados ficam de fora do índice.
+authTokenSchema.index(
+  { userId: 1, type: 1 },
+  { unique: true, partialFilterExpression: { usedAt: { $type: 'null' } } },
+);
+
 module.exports = mongoose.model('AuthToken', authTokenSchema);

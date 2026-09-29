@@ -3,18 +3,22 @@ const db = require('./helpers/db');
 const AuthToken = require('../src/models/AuthToken');
 const authTokenRepository = require('../src/repositories/AuthTokenRepository');
 
+// Um token não usado por usuário e tipo (índice único parcial do model).
 let counter = 0;
-const createToken = (userId) => {
+const createToken = (userId, type = 'password_reset') => {
   counter += 1;
   return AuthToken.create({
     userId,
-    type: 'password_reset',
+    type,
     tokenHash: String(counter).padStart(64, '0'),
     expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   });
 };
 
-beforeAll(db.connect);
+beforeAll(async () => {
+  await db.connect();
+  await AuthToken.init();
+});
 afterEach(db.clear);
 afterAll(db.close);
 
@@ -23,7 +27,7 @@ describe('AuthTokenRepository.deleteByUserId', () => {
     const ana = new mongoose.Types.ObjectId();
     const bia = new mongoose.Types.ObjectId();
     await createToken(ana);
-    await createToken(ana);
+    await createToken(ana, 'activation');
     await createToken(bia);
 
     await expect(authTokenRepository.deleteByUserId(ana)).resolves.toBe(2);

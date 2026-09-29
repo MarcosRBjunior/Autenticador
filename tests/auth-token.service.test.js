@@ -6,7 +6,7 @@ const authTokenService = require('../src/services/AuthTokenService');
 
 const sha256 = (text) => crypto.createHash('sha256').update(text).digest('hex');
 
-const PARALLEL = 10;
+const PARALLEL = 30;
 
 const ana = new mongoose.Types.ObjectId();
 const bia = new mongoose.Types.ObjectId();
@@ -15,11 +15,19 @@ const issueReset = (userId = ana) =>
   authTokenService.issue({ userId, type: 'password_reset', ttlMinutes: 30 });
 const consumeReset = (token) => authTokenService.consume({ token, type: 'password_reset' });
 
+// O pool do driver começa com uma conexão só e os pedidos acabariam em fila.
+// Com as conexões já abertas, eles correm em paralelo de verdade.
+const warmUpPool = () =>
+  Promise.all(Array.from({ length: PARALLEL }, () => AuthToken.findOne().lean()));
+
 beforeAll(async () => {
   await db.connect();
   await AuthToken.init();
 });
-afterEach(db.clear);
+afterEach(async () => {
+  jest.restoreAllMocks();
+  await db.clear();
+});
 afterAll(db.close);
 
 describe('AuthTokenService.issue', () => {
@@ -61,6 +69,30 @@ describe('AuthTokenService.issue', () => {
 
     await expect(consumeReset(old)).resolves.toBeNull();
     await expect(consumeReset(current)).resolves.toEqual(ana);
+  });
+
+  // Dois cliques em "esqueci a senha" chegam juntos.
+  it('com vários pedidos simultâneos, só um link fica valendo', async () => {
+    await warmUpPool();
+
+    // Todos terminam bem: quem perde a corrida do índice tenta de novo.
+    const tokens = await Promise.all(Array.from({ length: PARALLEL }, () => issueReset()));
+
+    const owners = [];
+    for (const token of tokens) owners.push(await consumeReset(token));
+    expect(owners.filter(Boolean)).toEqual([ana]);
+  });
+
+  // Uma falha do banco ao gravar o link novo não pode levar junto o anterior.
+  it('se gravar o link novo falhar, o anterior continua valendo', async () => {
+    const biaToken = await issueReset(bia);
+    const anaToken = await issueReset(ana);
+    // Mesmos bytes do token da bia: o índice único de tokenHash recusa a gravação.
+    jest.spyOn(crypto, 'randomBytes').mockReturnValueOnce(Buffer.from(biaToken, 'hex'));
+
+    await expect(issueReset(ana)).rejects.toThrow();
+
+    await expect(consumeReset(anaToken)).resolves.toEqual(ana);
   });
 
   it('não mexe nos tokens de outro tipo nem nos de outro usuário', async () => {
@@ -115,10 +147,8 @@ describe('AuthTokenService.consume', () => {
 
   it('com vários pedidos simultâneos, só um consegue usar o token', async () => {
     const token = await issueReset();
-    // O pool do driver começa com uma conexão só e os pedidos acabariam em
-    // fila. Com as conexões já abertas, as leituras correm em paralelo, e um
-    // "ler e depois marcar" deixaria mais de um passar.
-    await Promise.all(Array.from({ length: PARALLEL }, () => AuthToken.findOne().lean()));
+    // Com as leituras em paralelo, um "ler e depois marcar" deixaria mais de um passar.
+    await warmUpPool();
 
     const results = await Promise.all(Array.from({ length: PARALLEL }, () => consumeReset(token)));
 

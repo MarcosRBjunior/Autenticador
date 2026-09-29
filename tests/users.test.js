@@ -344,10 +344,11 @@ describe('PUT /api/v1/users/:id', () => {
 });
 
 describe('DELETE /api/v1/users/:id', () => {
-  const createAuthToken = (userId, tokenHash) =>
+  // Um token não usado por usuário e tipo (índice único parcial do model).
+  const createAuthToken = (userId, tokenHash, type = 'activation') =>
     AuthToken.create({
       userId,
-      type: 'activation',
+      type,
       tokenHash,
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     });
@@ -399,7 +400,7 @@ describe('DELETE /api/v1/users/:id', () => {
     const { user: admin, token } = await createUserWithToken({ role: 'admin' });
     const target = await createUser();
     await createAuthToken(target._id, 'a'.repeat(64));
-    await createAuthToken(target._id, 'b'.repeat(64));
+    await createAuthToken(target._id, 'b'.repeat(64), 'password_reset');
     await createAuthToken(admin._id, 'c'.repeat(64));
 
     await del(`/api/v1/users/${target.id}`, token);

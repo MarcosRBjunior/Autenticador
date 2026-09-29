@@ -8,12 +8,11 @@ const TOKEN_BYTES = 32;
 
 const hash = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
-// Só o link mais recente vale: os tokens anteriores do mesmo tipo, ainda não
-// usados, são apagados.
+// Só o link mais recente vale: o token novo substitui o anterior do mesmo tipo
+// que ainda não foi usado.
 async function issue({ userId, type, ttlMinutes }) {
   const token = crypto.randomBytes(TOKEN_BYTES).toString('hex');
-  await authTokenRepository.deleteUnused({ userId, type });
-  await authTokenRepository.create({
+  await authTokenRepository.replaceUnused({
     userId,
     type,
     tokenHash: hash(token),
