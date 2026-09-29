@@ -22,7 +22,7 @@ Mockups: https://claude.ai/artifact/B2umQu9k3yUBFR4LC4cEmo
 - `src/views/`: `login`, `register`, `forgot-password`, `reset-password`, `activate`, `resend-activation` (card de vidro), `users` (barra + cartões), `error` (403/404/429/500, no card).
 - `src/views/partials/`: `head`, `decor` (SVG das formas 3D, gerado uma vez do componente `DecorBackground` do React), `topbar` (Usuários · Admin só para admin · nome · Sair), `field` (rótulo, input, erro do campo).
 - `public/`: `css/app.css` (tokens e CSS do glass-login adaptados), `fonts/` (Outfit 500 e 700), `js/password-toggle.js` (olho da senha).
-- `src/routes/page.routes.js` ganha as rotas; `src/controllers/page.controller.js` chama os mesmos services da API (`AuthService`, `UserService`).
+- `src/routes/page.routes.js` ganha as rotas; `src/controllers/pages/` (session, register, activation, recovery, users) chama os mesmos services da API (`AuthService`, `UserService`).
 - `src/app.js`: `express.static('public')` antes do guard; `express.urlencoded({ extended: false, limit: '10kb' })`; `views` por caminho absoluto (funciona na Vercel).
 - O card mantém 410 px de largura, com altura pelo conteúdo; em telas estreitas ocupa a largura disponível (regra que o CSS do React já tem).
 
@@ -57,8 +57,8 @@ Todo POST termina em redirect 303. Avisos depois do redirect vêm de um parâmet
 ## Testes
 
 - **Integração (Jest + supertest):** `request.agent` guarda os cookies; helpers pequenos leem o token CSRF e as mensagens do HTML (sem dependência nova). Cobrem, por tela: sucesso (redirect + aviso), erros por campo com valores preenchidos e sem repetir senha, link inválido. E também: CSRF ausente ou errado → 403 sem efeito; `/users` sem login → redirect para `/login` e API → 401 JSON; 404/500 em HTML nas páginas e em JSON na API; `?search=<script>` escapado; rate limits compartilhados com a API; `no-store` nas páginas logadas; visão D-08 dos cartões.
-- **E2E (Playwright, critério de aceite):** `@playwright/test` como dependência de desenvolvimento, testes em `e2e/` (fora do Jest). Um script sobe o app com Mongo em memória e um usuário ativo. Fluxos: login → `/users` com os cartões → Sair → `/login`; cadastro → ativação (link capturado pelo teste) → login. CI: instala só o Chromium e roda `npm run test:e2e`.
-- **Revisão visual:** prints das telas reais pelo Playwright, publicados no link dos mockups antes do merge.
+- **E2E (Playwright, critério de aceite):** `@playwright/test` como dependência de desenvolvimento, testes em `e2e/` (fora do Jest). Um script sobe o app com Mongo em memória e um usuário ativo. Fluxos: login → `/users` com os cartões → Sair → `/login`; cadastro → ativação (link capturado pelo teste) → login. CI: usa o Google Chrome do sistema (`channel: 'chrome'`, sem baixar navegador; os runners ubuntu-24.04 do GitHub já trazem) e roda `npm run test:e2e`. O servidor E2E escuta em 127.0.0.1.
+- **Revisão visual:** prints das telas reais pelo Playwright, publicados em https://claude.ai/artifact/B2umQu9k3yUBFR4LC4cEmo antes do merge.
 
 ## Fora do escopo
 
