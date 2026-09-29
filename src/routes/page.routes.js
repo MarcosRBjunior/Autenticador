@@ -5,7 +5,8 @@ const session = require('../controllers/pages/session.controller');
 const activation = require('../controllers/pages/activation.controller');
 const recovery = require('../controllers/pages/recovery.controller');
 const usersPage = require('../controllers/pages/users.controller');
-const { identifyUser } = require('../middlewares/auth');
+const adminPages = require('../controllers/pages/admin.controller');
+const { identifyUser, isAdmin } = require('../middlewares/auth');
 const { issueCsrf, verifyCsrf } = require('../middlewares/csrf');
 const {
   loginLimiter,
@@ -49,5 +50,11 @@ router.post('/logout', form, verifyCsrf, identifyUser, authController.logoutPage
 
 // Logada: o guard garante req.user e manda para o /login sem sessão.
 router.get('/users', issueCsrf, usersPage.list);
+
+// Só admin: o guard garantiu a sessão e o isAdmin vem antes de ler formulário
+// ou CSRF (quem não é admin recebe 403 direto). Sem rate limit: só um admin
+// logado chega aqui.
+router.get('/admin', isAdmin, issueCsrf, adminPages.dashboard);
+router.post('/admin/users/:id/role', isAdmin, form, verifyCsrf, adminPages.changeRole);
 
 module.exports = router;

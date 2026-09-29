@@ -1,0 +1,67 @@
+<%- include('partials/head', { title: 'Painel admin' }) %>
+<div class="gl-app">
+  <%- include('partials/decor') %>
+  <%- include('partials/topbar', { active: 'admin' }) %>
+  <main class="gl-main">
+    <div class="gl-toolbar"><h1>Painel admin</h1></div>
+    <%- include('partials/messages') %>
+    <ul class="gl-stats" aria-label="Resumo">
+      <li class="gl-stat gl-glass"><strong><%= stats.totalUsers %></strong> <span><%= stats.totalUsers === 1 ? 'usuário' : 'usuários' %></span></li>
+      <li class="gl-stat gl-glass"><strong><%= stats.admins %></strong> <span><%= stats.admins === 1 ? 'admin' : 'admins' %></span></li>
+      <li class="gl-stat gl-glass"><strong><%= stats.inactive %></strong> <span><%= stats.inactive === 1 ? 'inativo' : 'inativos' %></span></li>
+    </ul>
+    <section class="gl-panel gl-glass" aria-labelledby="accounts-title">
+      <div class="gl-toolbar">
+        <h2 id="accounts-title">Contas</h2>
+        <form class="gl-search" method="get" action="/admin" role="search">
+          <label class="gl-visually-hidden" for="search">Buscar por username</label>
+          <input id="search" name="search" type="search" value="<%= state.search %>" placeholder="Buscar por username" />
+          <button type="submit">Buscar</button>
+        </form>
+      </div>
+      <% if (users.length === 0) { %>
+        <p class="gl-count">Nenhum usuário encontrado<% if (state.search) { %> para “<%= state.search %>”<% } %>.</p>
+      <% } else { %>
+        <div class="gl-table-wrap">
+          <table class="gl-table">
+            <thead>
+              <tr><th scope="col">Username</th><th scope="col">E-mail</th><th scope="col">Perfil</th><th scope="col">Status</th><th scope="col">Ações</th></tr>
+            </thead>
+            <tbody>
+              <% for (const user of users) { %>
+                <tr>
+                  <td><%= user.username %><% if (user.isSelf) { %><span class="gl-you">(você)</span><% } %></td>
+                  <td><%= user.email %></td>
+                  <td><span class="gl-badge<%= user.role === 'admin' ? ' gl-badge--admin' : '' %>"><%= user.role === 'admin' ? 'admin' : 'usuário' %></span></td>
+                  <td><span class="gl-badge<%= user.isActive ? '' : ' gl-badge--off' %>"><%= user.isActive ? 'ativo' : 'inativo' %></span></td>
+                  <td>
+                    <div class="gl-actions">
+                      <a class="gl-action" href="<%= user.editHref %>">Editar</a>
+                      <% if (!user.isSelf) { %>
+                        <form method="post" action="/admin/users/<%= user.id %>/role">
+                          <%- include('partials/csrf') %>
+                          <%- include('partials/list-state') %>
+                          <input type="hidden" name="role" value="<%= user.role === 'admin' ? 'user' : 'admin' %>" />
+                          <button class="gl-action" type="submit"><%= user.role === 'admin' ? 'Tornar usuário' : 'Tornar admin' %></button>
+                        </form>
+                        <a class="gl-action gl-action--danger" href="<%= user.deleteHref %>">Excluir</a>
+                      <% } %>
+                    </div>
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+      <% if (pages.length > 1) { %>
+        <nav class="gl-pager" aria-label="Páginas">
+          <% for (const p of pages) { %>
+            <% if (p.current) { %><span aria-current="page"><%= p.number %></span><% } else { %><a href="<%= p.href %>"><%= p.number %></a><% } %>
+          <% } %>
+        </nav>
+      <% } %>
+    </section>
+  </main>
+</div>
+<%- include('partials/foot') %>
