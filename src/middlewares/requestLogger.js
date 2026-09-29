@@ -18,8 +18,17 @@ function customLogLevel(req, res, err) {
   return 'info';
 }
 
+// Os links de ativação e de reset levam o token na query. O `req.query.token`
+// já sai redigido pelo logger; a URL precisa do mesmo cuidado.
+const TOKEN_IN_QUERY = /([?&]token=)[^&#]*/g;
+
+function redactUrl(req) {
+  req.url = req.url?.replace(TOKEN_IN_QUERY, '$1[Redacted]');
+  return req;
+}
+
 function createRequestLogger(logger) {
-  return pinoHttp({ logger, genReqId, customLogLevel });
+  return pinoHttp({ logger, genReqId, customLogLevel, serializers: { req: redactUrl } });
 }
 
 module.exports = { createRequestLogger };

@@ -66,6 +66,17 @@ describe('log de requisição', () => {
     expect(JSON.stringify(lines)).not.toMatch(/segredo/);
   });
 
+  // Os links de ativação e de reset levam o token na query; com ele, quem lê o
+  // log conseguiria ativar a conta ou trocar a senha.
+  it('esconde o token da query, mantendo o resto da URL', async () => {
+    const { app, lines } = buildApp();
+
+    await request(app).get('/ok?token=segredo&page=2');
+
+    expect(lines[0].req.url).toBe('/ok?token=[Redacted]&page=2');
+    expect(JSON.stringify(lines)).not.toMatch(/segredo/);
+  });
+
   it.each([
     ['/ok', 'info', 30],
     ['/bad', 'warn', 40],

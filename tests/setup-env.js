@@ -8,3 +8,6 @@ process.env.JWT_SECRET = 'test-only-secret-with-at-least-32-chars';
 process.env.TRUST_PROXY = '1';
 // Fixo para os testes de CORS não dependerem do .env local.
 process.env.CORS_ORIGIN = 'http://localhost:5173';
+// Fixos para os links e o remetente dos e-mails não dependerem do .env local.
+process.env.APP_URL = 'http://localhost:3000';
+process.env.MAIL_FROM = 'Auth System <no-reply@example.com>';

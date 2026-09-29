@@ -132,6 +132,10 @@ describe('seedAdmin', () => {
 });
 
 describe('npm run seed:admin (processo de verdade)', () => {
+  // Cada run() sobe um Node de verdade (e o spawnSync trava o worker até ele
+  // terminar). Com a máquina ocupada, isso passa dos 5 s padrão do Jest.
+  const PROCESS_TIMEOUT = 20_000;
+
   // cwd em uma pasta temporária para o .env local não interferir.
   const run = (overrides = {}) =>
     spawnSync(process.execPath, [SCRIPT], {
@@ -145,31 +149,52 @@ describe('npm run seed:admin (processo de verdade)', () => {
       },
     });
 
-  it('cria o admin na primeira execução e não faz nada na segunda', async () => {
-    const first = run();
-    const second = run();
+  it(
+    'cria o admin na primeira execução e não faz nada na segunda',
+    async () => {
+      const first = run();
+      const second = run();
 
-    expect(first.status).toBe(0);
-    expect(first.stdout).toMatch(/criado/);
-    expect(second.status).toBe(0);
-    expect(second.stdout).toMatch(/já existe/);
-    await expect(User.countDocuments({ role: 'admin' })).resolves.toBe(1);
-  });
+      expect(first.status).toBe(0);
+      expect(first.stdout).toMatch(/criado/);
+      expect(second.status).toBe(0);
+      expect(second.stdout).toMatch(/já existe/);
+      await expect(User.countDocuments({ role: 'admin' })).resolves.toBe(1);
+    },
+    PROCESS_TIMEOUT,
+  );
 
-  it('encerra com erro e diz o que falta, sem criar nada', async () => {
-    const result = run({ ADMIN_PASSWORD: '' });
+  it(
+    'encerra com erro e diz o que falta, sem criar nada',
+    async () => {
+      const result = run({ ADMIN_PASSWORD: '' });
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('ADMIN_PASSWORD');
-    await expect(User.countDocuments()).resolves.toBe(0);
-  });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('ADMIN_PASSWORD');
+      await expect(User.countDocuments()).resolves.toBe(0);
+    },
+    PROCESS_TIMEOUT,
+  );
 
-  it('recusa senha fraca em produção sem mostrar a senha', async () => {
-    const result = run({ NODE_ENV: 'production', ADMIN_PASSWORD: 'admin123' });
+  it(
+    'recusa senha fraca em produção sem mostrar a senha',
+    async () => {
+      // O script carrega a config do app, que em produção exige o SMTP.
+      const result = run({
+        NODE_ENV: 'production',
+        APP_URL: 'https://auth.example.com',
+        MAIL_FROM: 'Auth System <no-reply@auth.example.com>',
+        SMTP_HOST: 'smtp.resend.com',
+        SMTP_USER: 'resend',
+        SMTP_PASS: 're_chave_de_teste',
+        ADMIN_PASSWORD: 'admin123',
+      });
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('ADMIN_PASSWORD');
-    expect(result.stdout + result.stderr).not.toContain('admin123');
-    await expect(User.countDocuments()).resolves.toBe(0);
-  });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('ADMIN_PASSWORD');
+      expect(result.stdout + result.stderr).not.toContain('admin123');
+      await expect(User.countDocuments()).resolves.toBe(0);
+    },
+    PROCESS_TIMEOUT,
+  );
 });
