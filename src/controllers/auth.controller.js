@@ -49,4 +49,9 @@ function forgotPassword(req, res) {
   res.status(200).json({ message: FORGOT_PASSWORD_MESSAGE });
 }
 
-module.exports = { register, login, logout, logoutPage, forgotPassword };
+async function resetPassword(req, res) {
+  await authService.resetPassword(req.body);
+  res.status(200).json({ message: 'Senha redefinida. Entre com a nova senha.' });
+}
+
+module.exports = { register, login, logout, logoutPage, forgotPassword, resetPassword };

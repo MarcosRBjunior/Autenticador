@@ -47,4 +47,15 @@ const loginSchema = z.object({
 
 const forgotPasswordSchema = z.object({ email });
 
-module.exports = { registerSchema, loginSchema, forgotPasswordSchema };
+// O token só precisa ser texto (um objeto como {"$ne": null} para aqui); se
+// ele vale ou não, quem diz é o banco. A senha nova segue as regras do cadastro.
+const resetPasswordSchema = z.object({
+  token: z
+    .string({ error: 'Informe o token do link' })
+    .trim()
+    .min(1, 'Informe o token do link')
+    .max(256, 'Token longo demais'),
+  newPassword: password,
+});
+
+module.exports = { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema };

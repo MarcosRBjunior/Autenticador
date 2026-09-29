@@ -10,7 +10,12 @@ const {
   loginLimiter,
   forgotPasswordLimiter,
 } = require('../middlewares/rateLimiters');
-const { registerSchema, loginSchema, forgotPasswordSchema } = require('../validators/auth.schemas');
+const {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} = require('../validators/auth.schemas');
 const {
   listUsersQuery,
   userIdParams,
@@ -32,6 +37,8 @@ router.post(
   validate(forgotPasswordSchema),
   authController.forgotPassword,
 );
+// Sem rate limit: o token tem 256 bits aleatórios e não dá para adivinhar.
+router.post('/auth/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 
 // Protegidas pelo guard global: qualquer usuário autenticado.
 router.get('/me', usersController.me);
