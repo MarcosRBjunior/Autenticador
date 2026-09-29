@@ -30,10 +30,12 @@ const envSchema = z.object({
   JWT_SECRET: z
     .string({ error: 'obrigatória' })
     .min(32, 'obrigatória, com pelo menos 32 caracteres'),
-  // Endereço público do app, base dos links enviados por e-mail.
+  // Endereço público do app, base dos links enviados por e-mail. Sem query nem
+  // fragmento: `${APP_URL}/caminho` cairia dentro deles.
   APP_URL: optional(
     z
       .url({ protocol: /^https?$/, error: 'precisa ser uma URL http(s)' })
+      .refine((url) => !/[?#]/.test(url), 'não pode ter query (?) nem fragmento (#)')
       .transform((url) => url.replace(/\/+$/, ''))
       .optional(),
   ),
@@ -51,6 +53,10 @@ const schema = envSchema
       if (!env[name]) {
         ctx.addIssue({ code: 'custom', path: [name], message: 'obrigatória em produção' });
       }
+    }
+    // O token viaja no link: em http, qualquer um na mesma rede o lê.
+    if (env.APP_URL && new URL(env.APP_URL).protocol !== 'https:') {
+      ctx.addIssue({ code: 'custom', path: ['APP_URL'], message: 'precisa ser https em produção' });
     }
   })
   .transform((env) => ({

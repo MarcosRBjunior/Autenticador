@@ -157,9 +157,20 @@ describe('config/env', () => {
       expect(JSON.parse(result.stdout).APP_URL).toBe('https://auth.example.com');
     });
 
+    // O token viaja no link: em http, qualquer um na mesma rede o lê.
+    it('em produção, recusa APP_URL sem https', () => {
+      const result = loadMailEnv({ ...production, APP_URL: 'http://auth.example.com' });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('APP_URL');
+    });
+
     it.each([
       ['APP_URL', 'auth.example.com'],
       ['APP_URL', 'ftp://auth.example.com'],
+      // `${APP_URL}/caminho` cairia dentro da query ou do fragmento.
+      ['APP_URL', 'https://auth.example.com/?ref=email'],
+      ['APP_URL', 'https://auth.example.com/#inicio'],
       ['SMTP_PORT', 'smtp'],
     ])('recusa %s=%s', (name, value) => {
       const result = loadMailEnv({ [name]: value });
