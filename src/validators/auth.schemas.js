@@ -62,7 +62,27 @@ const resetPasswordSchema = z.object({ token: linkToken, newPassword: password }
 
 const activateSchema = z.object({ token: linkToken });
 
+// Formulários das páginas pedem a senha duas vezes.
+const passwordConfirmation = z.string({ error: 'Confirme a senha' });
+
+const matchingPasswords = (field) => (data, ctx) => {
+  if (data[field] !== data.passwordConfirmation) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['passwordConfirmation'],
+      message: 'As senhas não são iguais',
+    });
+  }
+};
+
+const registerFormSchema = registerSchema
+  .extend({ passwordConfirmation })
+  .superRefine(matchingPasswords('password'));
+
 module.exports = {
+  passwordConfirmation,
+  matchingPasswords,
+  registerFormSchema,
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
