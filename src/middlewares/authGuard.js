@@ -16,6 +16,7 @@ const PUBLIC_ROUTES = [
   ['POST', '/api/v1/auth/activate'],
   ['POST', '/api/v1/auth/resend-activation'],
   ['GET', '/login'],
+  ['POST', '/login'],
   ['GET', '/register'],
   ['GET', '/forgot-password'],
   ['GET', '/reset-password'],

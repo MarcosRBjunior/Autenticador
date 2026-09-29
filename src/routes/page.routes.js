@@ -1,14 +1,24 @@
-const { Router } = require('express');
+const express = require('express');
 const authController = require('../controllers/auth.controller');
+const session = require('../controllers/pages/session.controller');
 const { identifyUser } = require('../middlewares/auth');
+const { issueCsrf, verifyCsrf } = require('../middlewares/csrf');
+const { loginLimiter } = require('../middlewares/rateLimiters');
 
 // Páginas do navegador, fora de /api/v1 (views EJS, US-18).
-const router = Router();
+const router = express.Router();
 
-// Público na allowlist: logado vai para a lista, senão para o login.
-router.get('/', identifyUser, (req, res) => res.redirect(req.user ? '/users' : '/login'));
+// Só as páginas leem formulário HTML; a API segue aceitando só JSON (é o que
+// impede outro site de postar nela com um <form>).
+const form = express.urlencoded({ extended: false, limit: '10kb' });
 
-// Público na allowlist: sai para o /login mesmo com o token já inválido.
+// Públicas na allowlist. Os POST passam pelo CSRF e pelos mesmos rate limits
+// da API (mesma instância, mesmo contador).
+router.get('/', identifyUser, session.home);
+router.get('/login', identifyUser, issueCsrf, session.showLogin);
+router.post('/login', form, verifyCsrf, loginLimiter, session.login);
+
+// Sai para o /login mesmo com o token já inválido.
 router.get('/logout', identifyUser, authController.logoutPage);
 
 module.exports = router;

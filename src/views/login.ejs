@@ -1,0 +1,19 @@
+<%- include('partials/head', { title: 'Entrar' }) %>
+<%- include('partials/card-top', { heading: 'Entrar' }) %>
+<%- include('partials/messages') %>
+<% if (locals.inactive) { %>
+  <p class="gl-error" role="alert">
+    Sua conta ainda não foi ativada. Use o link que enviamos por e-mail ou
+    <a href="/resend-activation">peça um novo link de ativação</a>.
+  </p>
+<% } %>
+<form class="gl-form" method="post" action="/login" novalidate>
+  <%- include('partials/csrf') %>
+  <%- include('partials/field', { name: 'username', label: 'Usuário ou e-mail', type: 'text', autocomplete: 'username', value: values.username }) %>
+  <%- include('partials/field', { name: 'password', label: 'Senha', type: 'password', autocomplete: 'current-password' }) %>
+  <a class="gl-link gl-forgot" href="/forgot-password">Esqueci minha senha</a>
+  <button type="submit" class="gl-btn gl-submit">Entrar</button>
+</form>
+<p class="gl-footer">Ainda não tem conta? <a href="/register">Cadastre-se</a></p>
+<%- include('partials/card-bottom') %>
+<%- include('partials/foot') %>

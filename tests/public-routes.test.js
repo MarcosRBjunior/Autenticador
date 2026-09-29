@@ -13,6 +13,7 @@ describe('isPublicRoute', () => {
     ['POST', '/api/v1/auth/activate'],
     ['POST', '/api/v1/auth/resend-activation'],
     ['GET', '/login'],
+    ['POST', '/login'],
     ['GET', '/register'],
     ['GET', '/forgot-password'],
     ['GET', '/reset-password'],
@@ -41,7 +42,6 @@ describe('isPublicRoute', () => {
       'ativação por GET, que scanners de link abrem sozinhos',
     ],
     ['GET', '/api/v1/auth/activate', 'ativação só por POST'],
-    ['POST', '/login', 'formulário ainda não liberado (entra na US-18)'],
     ['GET', '/api/v1/logout', 'logout da API só por POST'],
     ['GET', '/api/v1/me', 'rota protegida'],
   ])('protege %s %s (%s)', (method, path) => {
