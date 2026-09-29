@@ -159,6 +159,22 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(res.body.error.details).toHaveProperty(field);
   });
 
+  // Adivinhar o token é inviável (256 bits); o limite só segura o abuso.
+  it('bloqueia o 11º pedido do mesmo IP em 15 min', async () => {
+    const ip = '192.0.2.77';
+    const attempt = () =>
+      request(app)
+        .post('/api/v1/auth/reset-password')
+        .set('X-Forwarded-For', ip)
+        .send({ token: 'f'.repeat(64), newPassword: NEW_PASSWORD });
+    for (let i = 0; i < 10; i++) expectInvalidToken(await attempt());
+
+    const blocked = await attempt();
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.error.code).toBe('TOO_MANY_REQUESTS');
+  });
+
   // Receber o link prova o e-mail, mas a ativação tem fluxo próprio (US-17).
   it('não ativa uma conta inativa', async () => {
     const user = await createUser({ isActive: false });

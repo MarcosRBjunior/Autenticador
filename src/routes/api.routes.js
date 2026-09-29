@@ -8,7 +8,8 @@ const { validate } = require('../middlewares/validate');
 const {
   registerLimiter,
   loginLimiter,
-  forgotPasswordLimiter,
+  forgotPasswordLimiters,
+  resetPasswordLimiter,
 } = require('../middlewares/rateLimiters');
 const {
   registerSchema,
@@ -33,12 +34,16 @@ router.post('/login', loginLimiter, validate(loginSchema), authController.login)
 router.post('/logout', identifyUser, authController.logout);
 router.post(
   '/auth/forgot-password',
-  forgotPasswordLimiter,
+  forgotPasswordLimiters,
   validate(forgotPasswordSchema),
   authController.forgotPassword,
 );
-// Sem rate limit: o token tem 256 bits aleatórios e não dá para adivinhar.
-router.post('/auth/reset-password', validate(resetPasswordSchema), authController.resetPassword);
+router.post(
+  '/auth/reset-password',
+  resetPasswordLimiter,
+  validate(resetPasswordSchema),
+  authController.resetPassword,
+);
 
 // Protegidas pelo guard global: qualquer usuário autenticado.
 router.get('/me', usersController.me);

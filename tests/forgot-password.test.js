@@ -151,6 +151,31 @@ describe('POST /api/v1/auth/forgot-password', () => {
       expect(res.status).toBe(200);
     });
 
+    // Sem isso, um IP dispararia e-mails para todos os cadastrados, gastando a
+    // cota do SMTP e a reputação do remetente.
+    it('um IP faz no máximo 20 pedidos por hora, mesmo com e-mails diferentes', async () => {
+      const ip = newIp();
+      for (let i = 0; i < 20; i++) {
+        expect((await forgot({ email: `pessoa${i}@example.com` }, ip)).status).toBe(200);
+      }
+
+      const blocked = await forgot({ email: 'mais.uma@example.com' }, ip);
+
+      expect(blocked.status).toBe(429);
+    });
+
+    // O limite roda antes da validação: um texto enorme não vira uma chave
+    // enorme na memória. A conta entra na chave cortada no tamanho de um e-mail.
+    it('corta a conta da chave em 254 caracteres', async () => {
+      const ip = newIp();
+      const prefix = 'a'.repeat(254);
+      for (let i = 0; i < 5; i++) await forgot({ email: `${prefix}1` }, ip);
+
+      const blocked = await forgot({ email: `${prefix}2` }, ip);
+
+      expect(blocked.status).toBe(429);
+    });
+
     it('trata maiúsculas e espaços como o mesmo e-mail', async () => {
       const ip = newIp();
       for (let i = 0; i < 5; i++) await forgot({ email: 'ana@example.com' }, ip);
