@@ -55,6 +55,17 @@ jobs:
       - name: Testes com cobertura
         run: npm test -- --coverage
 
+      - name: Testes E2E
+        run: npm run test:e2e
+
+      - name: Publicar relatório do E2E
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+
       - name: Resumo da cobertura
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
         run: |

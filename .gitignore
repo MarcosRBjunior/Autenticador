@@ -12,3 +12,5 @@ coverage/
 
 # Espaço de trabalho das skills do Claude Code (briefs, relatórios, mockups)
 .superpowers/
+playwright-report/
+test-results/
