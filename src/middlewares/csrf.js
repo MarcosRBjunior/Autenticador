@@ -12,8 +12,12 @@ const VALUE = /^[a-f0-9]{64}$/;
 const sign = (value) =>
   crypto.createHmac('sha256', env.JWT_SECRET).update(`csrf:${value}`).digest('hex');
 
-const sameText = (a, b) =>
-  a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+// timingSafeEqual exige o mesmo tamanho em bytes, não em caracteres.
+const sameText = (a, b) => {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
 
 function tokenFor(req, res) {
   let value = req.cookies?.[COOKIE];

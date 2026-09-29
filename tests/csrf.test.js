@@ -45,6 +45,7 @@ describe('CSRF', () => {
   it.each([
     ['sem token', () => ({})],
     ['com token errado', () => ({ _csrf: 'f'.repeat(64) })],
+    ['com token multibyte', () => ({ _csrf: 'é'.repeat(64) })],
   ])('recusa o POST %s', async (_why, form) => {
     const page = browser(formApp());
     await page.get('/form');
