@@ -2,6 +2,13 @@ require('dotenv').config({ quiet: true });
 
 const { z } = require('zod');
 
+// No .env, `SMTP_HOST=` sem valor significa "não configurado".
+const optional = (schema) => z.preprocess((value) => (value === '' ? undefined : value), schema);
+
+// Sem elas em produção, o cadastro criaria contas que nunca recebem o link de
+// ativação. Fora de produção o e-mail vai para o Ethereal.
+const REQUIRED_IN_PRODUCTION = ['APP_URL', 'MAIL_FROM', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'];
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -23,9 +30,36 @@ const envSchema = z.object({
   JWT_SECRET: z
     .string({ error: 'obrigatória' })
     .min(32, 'obrigatória, com pelo menos 32 caracteres'),
+  // Endereço público do app, base dos links enviados por e-mail.
+  APP_URL: optional(
+    z
+      .url({ protocol: /^https?$/, error: 'precisa ser uma URL http(s)' })
+      .transform((url) => url.replace(/\/+$/, ''))
+      .optional(),
+  ),
+  MAIL_FROM: optional(z.string().optional()),
+  SMTP_HOST: optional(z.string().optional()),
+  SMTP_PORT: optional(z.coerce.number().int().positive().default(587)),
+  SMTP_USER: optional(z.string().optional()),
+  SMTP_PASS: optional(z.string().optional()),
 });
 
-const parsed = envSchema.safeParse(process.env);
+const schema = envSchema
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== 'production') return;
+    for (const name of REQUIRED_IN_PRODUCTION) {
+      if (!env[name]) {
+        ctx.addIssue({ code: 'custom', path: [name], message: 'obrigatória em produção' });
+      }
+    }
+  })
+  .transform((env) => ({
+    ...env,
+    APP_URL: env.APP_URL ?? `http://localhost:${env.PORT}`,
+    MAIL_FROM: env.MAIL_FROM ?? 'Auth System <no-reply@example.com>',
+  }));
+
+const parsed = schema.safeParse(process.env);
 
 if (!parsed.success) {
   console.error('Variáveis de ambiente inválidas:', z.flattenError(parsed.error).fieldErrors);

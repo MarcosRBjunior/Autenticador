@@ -179,7 +179,16 @@ describe('npm run seed:admin (processo de verdade)', () => {
   it(
     'recusa senha fraca em produção sem mostrar a senha',
     async () => {
-      const result = run({ NODE_ENV: 'production', ADMIN_PASSWORD: 'admin123' });
+      // O script carrega a config do app, que em produção exige o SMTP.
+      const result = run({
+        NODE_ENV: 'production',
+        APP_URL: 'https://auth.example.com',
+        MAIL_FROM: 'Auth System <no-reply@auth.example.com>',
+        SMTP_HOST: 'smtp.resend.com',
+        SMTP_USER: 'resend',
+        SMTP_PASS: 're_chave_de_teste',
+        ADMIN_PASSWORD: 'admin123',
+      });
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('ADMIN_PASSWORD');
