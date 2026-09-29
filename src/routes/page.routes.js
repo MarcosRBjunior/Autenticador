@@ -56,5 +56,7 @@ router.get('/users', issueCsrf, usersPage.list);
 // logado chega aqui.
 router.get('/admin', isAdmin, issueCsrf, adminPages.dashboard);
 router.post('/admin/users/:id/role', isAdmin, form, verifyCsrf, adminPages.changeRole);
+router.get('/admin/users/:id/edit', isAdmin, issueCsrf, adminPages.showEdit);
+router.post('/admin/users/:id', isAdmin, form, verifyCsrf, adminPages.update);
 
 module.exports = router;

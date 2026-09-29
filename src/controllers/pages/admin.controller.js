@@ -1,6 +1,12 @@
+const { z } = require('zod');
 const userService = require('../../services/UserService');
 const AppError = require('../../utils/AppError');
-const { listUsersQuery, userIdParams, updateRoleSchema } = require('../../validators/user.schemas');
+const {
+  listUsersQuery,
+  userIdParams,
+  updateUserSchema,
+  updateRoleSchema,
+} = require('../../validators/user.schemas');
 
 const PAGE_SIZE = 20;
 
@@ -102,4 +108,58 @@ async function changeRole(req, res) {
   return res.redirect(303, withState('/admin', state, { done: 'role' }));
 }
 
-module.exports = { dashboard, changeRole };
+const text = (value) => (typeof value === 'string' ? value : '');
+
+function renderEdit(res, status, { id, user, state, values = {}, errors }) {
+  res.status(status).render('admin-edit', {
+    user: { id, username: user.username },
+    values,
+    errors,
+    state,
+    backHref: withState('/admin', state),
+  });
+}
+
+async function showEdit(req, res) {
+  const id = userId(req);
+  const state = listState(req.query);
+  const user = await userService.getUser(req.user, id);
+  renderEdit(res, 200, { id, user, state, values: { username: user.username } });
+}
+
+// Senha em branco = manter a atual. Trocar a senha derruba as sessões da conta
+// (o hook do model sobe o tokenVersion, RN-11).
+async function update(req, res) {
+  const id = userId(req);
+  const state = listState(req.body);
+  const user = await userService.getUser(req.user, id);
+  const values = { username: text(req.body.username) };
+  const password = text(req.body.password);
+
+  const parsed = updateUserSchema.safeParse({
+    username: values.username,
+    ...(password && { password }),
+  });
+  if (!parsed.success) {
+    return renderEdit(res, 400, {
+      id,
+      user,
+      state,
+      values,
+      errors: z.flattenError(parsed.error).fieldErrors,
+    });
+  }
+
+  try {
+    await userService.updateUser(req.user, id, parsed.data);
+  } catch (err) {
+    // 409: details já vem por campo (username).
+    if (err.status === 409) {
+      return renderEdit(res, 409, { id, user, state, values, errors: err.details });
+    }
+    throw err;
+  }
+  return res.redirect(303, withState('/admin', state, { done: 'updated' }));
+}
+
+module.exports = { dashboard, changeRole, showEdit, update };
