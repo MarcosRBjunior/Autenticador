@@ -1,11 +1,5 @@
 const { test, expect } = require('@playwright/test');
-
-async function login(page, username, password) {
-  await page.goto('/login');
-  await page.getByLabel('Usuário ou e-mail').fill(username);
-  await page.getByLabel('Senha', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Entrar' }).click();
-}
+const { login } = require('./helpers');
 
 test('login, lista de usuários e saída', async ({ page }) => {
   await login(page, 'ana', 'senha-forte-123');
