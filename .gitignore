@@ -9,3 +9,6 @@ coverage/
 
 *.log
 .DS_Store
+
+# Espaço de trabalho das skills do Claude Code (briefs, relatórios, mockups)
+.superpowers/
