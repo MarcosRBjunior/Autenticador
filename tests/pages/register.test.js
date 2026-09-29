@@ -45,6 +45,14 @@ describe('GET /register', () => {
     }
     expect(textOf(res.text)).toContain('8 a 72 caracteres');
   });
+
+  it('liga a dica ao campo por aria-describedby e usa só o rótulo no olho', async () => {
+    const res = await browser(app).get('/register');
+
+    expect(res.text).toContain('id="field-password-hint"');
+    expect(res.text).toMatch(/id="field-password"[^>]*aria-describedby="field-password-hint"/);
+    expect(res.text).not.toContain('aria-pressed');
+  });
 });
 
 describe('POST /register', () => {

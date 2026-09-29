@@ -26,6 +26,12 @@ afterEach(db.clear);
 afterAll(db.close);
 
 describe('GET /login', () => {
+  it('declara um favicon vazio para o navegador não pedir /favicon.ico', async () => {
+    const res = await browser(app).get('/login');
+
+    expect(res.text).toContain('rel="icon"');
+  });
+
   it('mostra o formulário com o token CSRF', async () => {
     const res = await browser(app).get('/login');
 
