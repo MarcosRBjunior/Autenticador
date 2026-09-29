@@ -25,8 +25,11 @@ userSchema.pre('save', async function () {
   // Senha nova (RN-11) ou role nova (o token carrega a role) derrubam os JWTs
   // emitidos antes. Fica aqui, e não em cada rota, para nenhum caminho que
   // mude uma das duas esquecer disso. Role igual à atual não conta como mudança.
+  // $inc no banco, e não somar aqui e gravar: um logout que chegue enquanto o
+  // bcrypt calcula o hash não se perde (senão um JWT emitido nessa janela
+  // sobreviveria à troca).
   if (!this.isNew && (this.isModified('password') || this.isModified('role'))) {
-    this.tokenVersion += 1;
+    this.$inc('tokenVersion', 1);
   }
   if (this.isModified('password')) {
     this.password = await bcrypt.hash(this.password, BCRYPT_ROUNDS);

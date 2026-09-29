@@ -57,6 +57,20 @@ describe('User model', () => {
     expect(stored.tokenVersion).toBe(1);
   });
 
+  // Um logout ($inc) que chega enquanto o bcrypt calcula o hash da senha nova
+  // não pode se perder: senão um JWT emitido nessa janela sobrevive à troca.
+  it('não perde um incremento de tokenVersion feito durante a troca de senha', async () => {
+    const user = await User.create(validUser());
+
+    user.password = 'outra-senha-456';
+    const saving = user.save();
+    await User.updateOne({ _id: user._id }, { $inc: { tokenVersion: 1 } });
+    await saving;
+
+    const stored = await User.findById(user._id).lean();
+    expect(stored.tokenVersion).toBe(2);
+  });
+
   it('não refaz o hash quando só a role muda', async () => {
     const user = await User.create(validUser());
     const { password: hashBefore } = await User.findById(user._id).select('+password').lean();
