@@ -21,9 +21,12 @@ test('login, lista de usuários e saída', async ({ page }) => {
 });
 
 test('cadastro, ativação pelo link e login', async ({ page, request }) => {
+  // Único por tentativa: o retry do CI roda no mesmo servidor e mesmo banco.
+  const name = `bia${test.info().retry}${Date.now()}`;
+  const email = `${name}@example.com`;
   await page.goto('/register');
-  await page.getByLabel('Username').fill('bia');
-  await page.getByLabel('E-mail').fill('bia@example.com');
+  await page.getByLabel('Username').fill(name);
+  await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha', { exact: true }).fill('senha-forte-456');
   await page.getByLabel('Confirmar senha', { exact: true }).fill('senha-forte-456');
   await page.getByRole('button', { name: 'Criar conta' }).click();
@@ -33,7 +36,9 @@ test('cadastro, ativação pelo link e login', async ({ page, request }) => {
   let token = null;
   await expect
     .poll(async () => {
-      ({ token } = await (await request.get('/__e2e/last-activation-token')).json());
+      ({ token } = await (
+        await request.get(`/__e2e/last-activation-token?email=${encodeURIComponent(email)}`)
+      ).json());
       return token;
     })
     .toBeTruthy();
@@ -42,7 +47,7 @@ test('cadastro, ativação pelo link e login', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Ativar minha conta' }).click();
   await expect(page).toHaveURL(/\/login\?activated=1$/);
 
-  await login(page, 'bia', 'senha-forte-456');
+  await login(page, name, 'senha-forte-456');
   await expect(page).toHaveURL(/\/users$/);
 });
 

@@ -1,7 +1,7 @@
 // Sobe o app para o Playwright: Mongo em memória, e-mail sem rede
 // (NODE_ENV=test usa o jsonTransport) e uma usuária ativa. Só este servidor
-// tem a rota /__e2e/last-activation-token, que entrega o último link de
-// ativação enviado.
+// tem a rota /__e2e/last-activation-token?email=..., que entrega o último
+// token de ativação enviado para aquele e-mail.
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
@@ -35,9 +35,10 @@ async function start() {
 
   const app = require('../src/app');
   const server = express();
-  server.get('/__e2e/last-activation-token', (req, res) =>
-    res.json({ token: sent.at(-1)?.token ?? null }),
-  );
+  server.get('/__e2e/last-activation-token', (req, res) => {
+    const email = String(req.query.email ?? '');
+    res.json({ token: sent.findLast((m) => m.user.email === email)?.token ?? null });
+  });
   server.use(app);
   server.listen(PORT, () => console.log(`E2E em http://127.0.0.1:${PORT}`));
 }
