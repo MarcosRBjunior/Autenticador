@@ -1,4 +1,5 @@
 const authService = require('../services/AuthService');
+const background = require('../utils/background');
 
 // Secure sempre: navegadores aceitam cookie Secure em http://localhost, e em
 // produção o app só roda em HTTPS.
@@ -38,4 +39,21 @@ async function logoutPage(req, res) {
   res.redirect('/login');
 }
 
-module.exports = { register, login, logout, logoutPage };
+const FORGOT_PASSWORD_MESSAGE =
+  'Se o e-mail estiver cadastrado, você vai receber um link para redefinir a senha.';
+
+// Responde antes de procurar o usuário: a resposta e o tempo dela são os mesmos
+// com ou sem conta, e ninguém espera o SMTP.
+function forgotPassword(req, res) {
+  // Só o e-mail vai para a tarefa, não a requisição inteira.
+  const { email } = req.body;
+  background.run('password_reset_request', () => authService.requestPasswordReset(email));
+  res.status(200).json({ message: FORGOT_PASSWORD_MESSAGE });
+}
+
+async function resetPassword(req, res) {
+  await authService.resetPassword(req.body);
+  res.status(200).json({ message: 'Senha redefinida. Entre com a nova senha.' });
+}
+
+module.exports = { register, login, logout, logoutPage, forgotPassword, resetPassword };

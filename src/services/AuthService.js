@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
 const userRepository = require('../repositories/UserRepository');
 const tokenService = require('./TokenService');
+const authTokenService = require('./AuthTokenService');
+const mailService = require('./MailService');
 const AppError = require('../utils/AppError');
 const { TAKEN, toTakenError } = require('../utils/takenErrors');
 
@@ -60,4 +62,44 @@ async function logout(user) {
   await userRepository.incrementTokenVersion(user.id);
 }
 
-module.exports = { register, login, logout };
+// RN-10: o link de reset vale 30 minutos.
+const PASSWORD_RESET_TTL_MINUTES = 30;
+
+// Roda depois da resposta genérica do forgot, então quem pediu não fica sabendo
+// se o e-mail tem conta. O destinatário é o e-mail do usuário achado no banco.
+async function requestPasswordReset(email) {
+  const user = await userRepository.findByEmail(email);
+  if (!user) return;
+
+  const token = await authTokenService.issue({
+    userId: user.id,
+    type: 'password_reset',
+    ttlMinutes: PASSWORD_RESET_TTL_MINUTES,
+  });
+  await mailService.sendPasswordResetEmail({
+    user,
+    token,
+    expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
+  });
+}
+
+const invalidResetToken = () =>
+  new AppError(
+    400,
+    'TOKEN_INVALID_OR_EXPIRED',
+    'Link de redefinição inválido ou expirado. Peça um novo.',
+  );
+
+// O token é gasto antes da troca: dois pedidos com o mesmo link não trocam a
+// senha duas vezes. Se a troca falhar depois disso, o usuário pede outro link.
+async function resetPassword({ token, newPassword }) {
+  const userId = await authTokenService.consume({ token, type: 'password_reset' });
+  if (!userId) throw invalidResetToken();
+
+  // Pelo save() do model: a senha vira hash e o tokenVersion sobe, o que
+  // derruba os JWTs emitidos antes (RN-11). O reset não ativa a conta.
+  const user = await userRepository.update(userId, { password: newPassword });
+  if (!user) throw invalidResetToken();
+}
+
+module.exports = { register, login, logout, requestPasswordReset, resetPassword };

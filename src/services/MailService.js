@@ -3,9 +3,10 @@ const env = require('../config/env');
 const { logger } = require('../utils/logger');
 const templates = require('./mailTemplates');
 
-// Teto de cada envio. Ele acontece dentro da requisição (na Vercel, uma
-// promise solta depois da resposta pode não terminar), então um SMTP lento não
-// pode segurar o cadastro ou o "esqueci a senha".
+// Teto de cada envio. Quem chama espera o envio dentro da requisição ou o roda
+// depois da resposta com waitUntil (utils/background.js), como o "esqueci a
+// senha"; nos dois casos, um SMTP lento não pode prender a requisição nem a
+// função da Vercel por muito tempo.
 const SEND_TIMEOUT_MS = 10_000;
 
 // Fecham a conexão SMTP que travar, além de o envio desistir no teto acima.

@@ -5,8 +5,18 @@ const usersController = require('../controllers/users.controller');
 const adminController = require('../controllers/admin.controller');
 const { isAdmin, identifyUser } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validate');
-const { registerLimiter, loginLimiter } = require('../middlewares/rateLimiters');
-const { registerSchema, loginSchema } = require('../validators/auth.schemas');
+const {
+  registerLimiter,
+  loginLimiter,
+  forgotPasswordLimiters,
+  resetPasswordLimiter,
+} = require('../middlewares/rateLimiters');
+const {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} = require('../validators/auth.schemas');
 const {
   listUsersQuery,
   userIdParams,
@@ -22,6 +32,18 @@ router.get('/health', healthController.check);
 router.post('/register', registerLimiter, validate(registerSchema), authController.register);
 router.post('/login', loginLimiter, validate(loginSchema), authController.login);
 router.post('/logout', identifyUser, authController.logout);
+router.post(
+  '/auth/forgot-password',
+  forgotPasswordLimiters,
+  validate(forgotPasswordSchema),
+  authController.forgotPassword,
+);
+router.post(
+  '/auth/reset-password',
+  resetPasswordLimiter,
+  validate(resetPasswordSchema),
+  authController.resetPassword,
+);
 
 // Protegidas pelo guard global: qualquer usuário autenticado.
 router.get('/me', usersController.me);
