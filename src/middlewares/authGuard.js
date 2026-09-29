@@ -25,6 +25,8 @@ const PUBLIC_ROUTES = [
   ['POST', '/resend-activation'],
   ['GET', '/forgot-password'],
   ['GET', '/reset-password'],
+  ['POST', '/forgot-password'],
+  ['POST', '/reset-password'],
   // O logout identifica o usuário por conta própria (identifyUser) e sai com
   // sucesso mesmo com token ausente, expirado ou já invalidado.
   ['POST', '/api/v1/logout'],

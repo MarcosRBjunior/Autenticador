@@ -79,10 +79,15 @@ const registerFormSchema = registerSchema
   .extend({ passwordConfirmation })
   .superRefine(matchingPasswords('password'));
 
+const resetPasswordFormSchema = resetPasswordSchema
+  .extend({ passwordConfirmation })
+  .superRefine(matchingPasswords('newPassword'));
+
 module.exports = {
   passwordConfirmation,
   matchingPasswords,
   registerFormSchema,
+  resetPasswordFormSchema,
   registerSchema,
   loginSchema,
   forgotPasswordSchema,

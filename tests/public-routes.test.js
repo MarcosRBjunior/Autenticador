@@ -22,6 +22,8 @@ describe('isPublicRoute', () => {
     ['POST', '/resend-activation'],
     ['GET', '/forgot-password'],
     ['GET', '/reset-password'],
+    ['POST', '/forgot-password'],
+    ['POST', '/reset-password'],
     // Logout responde 204 (ou redireciona) até com token inválido.
     ['POST', '/api/v1/logout'],
     ['GET', '/logout'],

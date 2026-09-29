@@ -3,6 +3,7 @@ const authController = require('../controllers/auth.controller');
 const registration = require('../controllers/pages/register.controller');
 const session = require('../controllers/pages/session.controller');
 const activation = require('../controllers/pages/activation.controller');
+const recovery = require('../controllers/pages/recovery.controller');
 const { identifyUser } = require('../middlewares/auth');
 const { issueCsrf, verifyCsrf } = require('../middlewares/csrf');
 const {
@@ -10,6 +11,8 @@ const {
   registerLimiter,
   activateLimiter,
   resendActivationLimiters,
+  forgotPasswordLimiters,
+  resetPasswordLimiter,
 } = require('../middlewares/rateLimiters');
 
 // Páginas do navegador, fora de /api/v1 (views EJS, US-18).
@@ -32,6 +35,11 @@ router.get('/activate', issueCsrf, activation.showActivate);
 router.post('/activate', form, verifyCsrf, activateLimiter, activation.activate);
 router.get('/resend-activation', issueCsrf, activation.showResend);
 router.post('/resend-activation', form, verifyCsrf, resendActivationLimiters, activation.resend);
+
+router.get('/forgot-password', issueCsrf, recovery.showForgot);
+router.post('/forgot-password', form, verifyCsrf, forgotPasswordLimiters, recovery.forgot);
+router.get('/reset-password', issueCsrf, recovery.showReset);
+router.post('/reset-password', form, verifyCsrf, resetPasswordLimiter, recovery.reset);
 
 // Sai para o /login mesmo com o token já inválido.
 router.get('/logout', identifyUser, authController.logoutPage);
