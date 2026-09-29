@@ -45,7 +45,7 @@ router.post('/reset-password', form, verifyCsrf, resetPasswordLimiter, recovery.
 
 // Sai para o /login mesmo com o token já inválido.
 router.get('/logout', identifyUser, authController.logoutPage);
-// O botão "Sair" da barra: POST com CSRF, para outro site não deslogar ninguém.
+// O botão "Sair" da barra: POST com CSRF. O GET acima continua porque o PDF pede.
 router.post('/logout', form, verifyCsrf, identifyUser, authController.logoutPage);
 
 // Logada: o guard garante req.user e manda para o /login sem sessão.

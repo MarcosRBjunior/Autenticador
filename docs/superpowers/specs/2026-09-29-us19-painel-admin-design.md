@@ -8,28 +8,28 @@ Mockups: https://claude.ai/artifact/MuotqDEFE5e2ykP6rE2pF6 (opção A escolhida)
 
 ## Decisões
 
-| Tema             | Decisão                                                                                         | Por quê                                                             |
-| ---------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Layout           | Opção A: barra de vidro, três contadores e a tabela de vidro com as ações por linha             | Cabem mais contas por tela; é a tabela que a especificação descreve |
-| Funcionamento    | O mesmo da US-18: formulários tratados no servidor, POST + redirect 303, CSRF                   | O painel se encaixa sem nada novo                                   |
-| Editar e excluir | Telas próprias no card de vidro, sem JavaScript; a exclusão só acontece no botão da confirmação | Confirmação sem JS, como pede a D-11                                |
-| A própria linha  | Marca "(você)", sem "Tornar usuário" e sem "Excluir"                                            | Ninguém se tranca fora do painel por engano                         |
-| Rate limit       | Nenhum nas ações do painel                                                                      | Só um admin logado chega nelas                                      |
-| "Sair"           | Formulário POST `/logout` com CSRF na barra; `GET /logout` continua                             | Outro site não consegue deslogar ninguém; o PDF pede o `GET`        |
-| Cookie CSRF      | `__Host-csrf`                                                                                   | Um subdomínio não consegue plantar o cookie                         |
+| Tema             | Decisão                                                                                         | Por quê                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Layout           | Opção A: barra de vidro, três contadores e a tabela de vidro com as ações por linha             | Cabem mais contas por tela; é a tabela que a especificação descreve         |
+| Funcionamento    | O mesmo da US-18: formulários tratados no servidor, POST + redirect 303, CSRF                   | O painel se encaixa sem nada novo                                           |
+| Editar e excluir | Telas próprias no card de vidro, sem JavaScript; a exclusão só acontece no botão da confirmação | Confirmação sem JS, como pede a D-11                                        |
+| A própria linha  | Marca "(você)", sem "Tornar usuário" e sem "Excluir"                                            | Ninguém se tranca fora do painel por engano                                 |
+| Rate limit       | Nenhum nas ações do painel                                                                      | Só um admin logado chega nelas                                              |
+| "Sair"           | Formulário POST `/logout` com CSRF na barra; `GET /logout` continua                             | O botão da barra não depende de GET; o `GET /logout` fica porque o PDF pede |
+| Cookie CSRF      | `__Host-csrf`                                                                                   | Um subdomínio não consegue plantar o cookie                                 |
 
 ## Telas e fluxos
 
 Todas as rotas do painel passam pela sessão (guard) e pelo `isAdmin`, nessa ordem: quem não é admin recebe a página 403 "Sem permissão", antes de qualquer checagem de formulário. Um `:id` inválido ou de conta inexistente dá a página 404.
 
-| Rota                           | O que faz                                                                                                                                                                                                                         |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /admin`                   | Contadores (`getStats`: usuários, admins, inativos), busca por username e a tabela (username, e-mail, perfil, status, ações), páginas de 20 (`listUsers`). Mostra o aviso do parâmetro fixo `?done=updated                        | role | deleted`ou`?error=last-admin`. |
-| `POST /admin/users/:id/role`   | Botão "Tornar admin" / "Tornar usuário" (`changeRole`). Volta para `/admin` na mesma busca e página, com "Perfil alterado." ou "Não é possível remover o último admin."                                                           |
-| `GET /admin/users/:id/edit`    | Card com username e senha nova opcional ("deixe em branco para manter").                                                                                                                                                          |
-| `POST /admin/users/:id`        | `updateUser`. Erros por campo (400 validação, 409 username já usado) com o valor digitado; a senha nunca volta. Sucesso → `/admin` com "Usuário atualizado.". Trocar a senha encerra as sessões daquela conta (RN-11, já na API). |
-| `GET /admin/users/:id/delete`  | Card "Excluir usuário" com username e e-mail da conta, botão **Excluir conta** (POST) e Cancelar.                                                                                                                                 |
-| `POST /admin/users/:id/delete` | `deleteUser`. Sucesso → `/admin` com "Usuário excluído."; último admin → "Não é possível remover o último admin.".                                                                                                                |
+| Rota                           | O que faz                                                                                                                                                                                                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /admin`                   | Contadores (`getStats`: usuários, admins, inativos), busca por username e a tabela (username, e-mail, perfil, status, ações), páginas de 20 (`listUsers`). Mostra o aviso do parâmetro fixo `?done=updated`, `role` ou `deleted`, ou `?error=last-admin`. |
+| `POST /admin/users/:id/role`   | Botão "Tornar admin" / "Tornar usuário" (`changeRole`). Volta para `/admin` na mesma busca e página, com "Perfil alterado." ou "Não é possível remover o último admin."                                                                                   |
+| `GET /admin/users/:id/edit`    | Card com username e senha nova opcional ("deixe em branco para manter").                                                                                                                                                                                  |
+| `POST /admin/users/:id`        | `updateUser`. Erros por campo (400 validação, 409 username já usado) com o valor digitado; a senha nunca volta. Sucesso → `/admin` com "Usuário atualizado.". Trocar a senha encerra as sessões daquela conta (RN-11, já na API).                         |
+| `GET /admin/users/:id/delete`  | Card "Excluir usuário" com username e e-mail da conta, botão **Excluir conta** (POST) e Cancelar.                                                                                                                                                         |
+| `POST /admin/users/:id/delete` | `deleteUser`. Sucesso → `/admin` com "Usuário excluído."; último admin → "Não é possível remover o último admin.".                                                                                                                                        |
 
 A busca e a página da lista viajam como query nos links de editar e excluir e como campos ocultos nos formulários, para cada ação voltar à mesma posição. Avisos só por parâmetros fixos, nunca texto da URL.
 
@@ -48,7 +48,7 @@ A busca e a página da lista viajam como query nos links de editar e excluir e c
 
 - Criar contas pelo painel (o cadastro já existe).
 - Ativar ou desativar contas pelo painel (não há rota na API).
-- Bloquear no servidor que o admin rebaixe ou exclua a si mesmo: a interface esconde as ações, e um POST forjado só desloga o próprio admin, porque a sessão dele cai.
+- Bloquear no servidor que o admin rebaixe ou exclua a si mesmo: a interface esconde as ações. Um POST montado à mão pelo próprio admin rebaixa ou exclui a conta de verdade (a sessão cai depois); outro site não consegue, porque o CSRF barra. A RN-09 (último admin) impede que o sistema fique sem nenhum admin.
 
 ## Ordem de implementação
 
