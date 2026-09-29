@@ -1,6 +1,6 @@
 const request = require('supertest');
 const db = require('./helpers/db');
-const { browser, textOf } = require('./helpers/browser');
+const { browser, csrfFrom, textOf } = require('./helpers/browser');
 const { createUser, tokenFor, createUserWithToken } = require('./helpers/auth');
 const User = require('../src/models/User');
 const app = require('../src/app');
@@ -133,6 +133,19 @@ describe('POST /logout (página)', () => {
     expect(page.cookies.has('access_token')).toBe(false);
     const me = await request(app).get('/api/v1/me').set('Authorization', `Bearer ${jwt}`);
     expect(me.status).toBe(401);
+  });
+
+  it('com o JWT já inválido e o token CSRF válido, sai para o /login', async () => {
+    const user = await createUser();
+    const page = loggedIn(user);
+    const csrf = csrfFrom((await page.get('/users')).text);
+    page.cookies.set('access_token', 'jwt-invalido');
+
+    const res = await page.post('/logout', { _csrf: csrf });
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/login');
+    expectCookieCleared(res);
   });
 
   it('sem o token CSRF: 403 e a sessão continua', async () => {
