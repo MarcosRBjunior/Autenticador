@@ -35,6 +35,16 @@ const smtpInfo = (response = '250 Accepted') => ({
   messageId: '<a1b2c3@example.com>',
 });
 
+// Mesmo formato dos erros do smtp-connection do nodemailer (_formatError): a
+// resposta do servidor vai no fim da mensagem.
+const smtpError = (message, code, response, command) =>
+  Object.assign(new Error(`${message}: ${response}`), {
+    code,
+    response,
+    responseCode: Number(response.slice(0, 3)),
+    command,
+  });
+
 // A config é lida no require e o transporte fica guardado depois do primeiro
 // envio, então cada cenário carrega o MailService do zero.
 function loadMailService(envOverrides = {}) {
@@ -229,15 +239,14 @@ describe('MailService', () => {
   });
 
   describe('falhas', () => {
-    it('devolve false e loga o erro, sem token nem e-mail, quando o SMTP recusa', async () => {
+    it('devolve false e loga o motivo, sem o token, quando o SMTP recusa o login', async () => {
       const { mailService, nodemailer, logger } = loadMailService();
-      // Mesmo formato do erro que o nodemailer dá com a senha errada.
-      const authError = Object.assign(new Error('Invalid login: 535 Authentication failed'), {
-        code: 'EAUTH',
-        response: '535 Authentication failed',
-        responseCode: 535,
-        command: 'AUTH PLAIN',
-      });
+      const authError = smtpError(
+        'Invalid login',
+        'EAUTH',
+        '535 Authentication failed',
+        'AUTH PLAIN',
+      );
       watchTransport(nodemailer, async () => {
         throw authError;
       });
@@ -250,12 +259,52 @@ describe('MailService', () => {
 
       expect(sent).toBe(false);
       expect(logger.error).toHaveBeenCalledWith(
-        { err: authError, kind: 'password_reset', userId: user.id },
+        {
+          err: {
+            name: 'Error',
+            message: 'Invalid login: 535 Authentication failed',
+            code: 'EAUTH',
+            responseCode: 535,
+            command: 'AUTH PLAIN',
+          },
+          kind: 'password_reset',
+          userId: user.id,
+        },
         expect.any(String),
       );
-      const logged = JSON.stringify(logger.error.mock.calls);
-      expect(logged).not.toContain('tok3n');
-      expect(logged).not.toContain('ana@example.com');
+      expect(JSON.stringify(logger.error.mock.calls)).not.toContain('tok3n');
+    });
+
+    it('não loga o endereço quando o servidor recusa o destinatário', async () => {
+      const { mailService, nodemailer, logger } = loadMailService();
+      const response = '550 5.1.1 <ana@example.com>: Recipient address rejected';
+      const recipientError = Object.assign(
+        smtpError('Recipient command failed', 'EENVELOPE', response, 'RCPT TO'),
+        { recipient: 'ana@example.com' },
+      );
+      const envelopeError = Object.assign(
+        smtpError(
+          "Can't send mail - all recipients were rejected",
+          'EENVELOPE',
+          response,
+          'RCPT TO',
+        ),
+        { rejected: ['ana@example.com'], rejectedErrors: [recipientError] },
+      );
+      watchTransport(nodemailer, async () => {
+        throw envelopeError;
+      });
+
+      const sent = await mailService.sendActivationEmail({
+        user,
+        token: 'tok3n',
+        expiresInMinutes: 1440,
+      });
+
+      expect(sent).toBe(false);
+      const [[logged]] = logger.error.mock.calls;
+      expect(logged.err).toMatchObject({ code: 'EENVELOPE', responseCode: 550 });
+      expect(JSON.stringify(logged)).not.toContain('ana@example.com');
     });
 
     it('desiste depois de 10 s sem resposta do servidor', async () => {

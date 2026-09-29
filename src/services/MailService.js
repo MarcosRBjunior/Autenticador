@@ -47,9 +47,23 @@ function getTransporter() {
   return transporter;
 }
 
-// Nunca lança: falha ou timeout vira log de erro e `false`, e quem chamou segue
-// a requisição. O log leva só o tipo e o id do usuário, nunca o token, o link
-// ou o endereço.
+// Endereços que o servidor SMTP repete na resposta ("550 <ana@...>: rejected").
+const EMAIL_ADDRESS = /[^\s<>"',;:]+@[^\s<>"',;:]+/g;
+
+// Só os campos que dizem o motivo. O erro inteiro traria o destinatário em
+// `rejected`, `rejectedErrors` e `response`.
+const describeError = (err) => ({
+  name: err.name,
+  message: String(err.message).replace(EMAIL_ADDRESS, '[e-mail]'),
+  code: err.code,
+  responseCode: err.responseCode,
+  command: err.command,
+});
+
+// Falha de envio nunca lança: vira log de erro e `false` ("envio não
+// confirmado": num timeout, o e-mail ainda pode chegar depois), e quem chamou
+// segue a requisição. Argumento inválido é erro de programação e lança. O log
+// leva só o tipo e o id do usuário, nunca o token, o link ou o endereço.
 async function send({ kind, user, subject, text }) {
   const log = { kind, userId: user.id };
   let timer;
@@ -72,7 +86,7 @@ async function send({ kind, user, subject, text }) {
     logger.info(previewUrl ? { ...log, previewUrl } : log, 'E-mail enviado');
     return true;
   } catch (err) {
-    logger.error({ err, ...log }, 'Falha ao enviar e-mail');
+    logger.error({ err: describeError(err), ...log }, 'Falha ao enviar e-mail');
     return false;
   } finally {
     clearTimeout(timer);
