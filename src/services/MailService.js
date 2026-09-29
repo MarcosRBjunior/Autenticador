@@ -8,6 +8,13 @@ const templates = require('./mailTemplates');
 // pode segurar o cadastro ou o "esqueci a senha".
 const SEND_TIMEOUT_MS = 10_000;
 
+// Fecham a conexão SMTP que travar, além de o envio desistir no teto acima.
+const SMTP_TIMEOUTS = {
+  connectionTimeout: SEND_TIMEOUT_MS,
+  greetingTimeout: SEND_TIMEOUT_MS,
+  socketTimeout: SEND_TIMEOUT_MS,
+};
+
 // D-01: nos testes nada sai da máquina; com SMTP_HOST, o provedor configurado;
 // em desenvolvimento sem ele, uma conta descartável do Ethereal.
 async function createTransport() {
@@ -21,10 +28,10 @@ async function createTransport() {
       secure,
       // O link de reset é um segredo: em produção, nada de SMTP sem TLS.
       requireTLS: env.NODE_ENV === 'production' && !secure,
-      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      connectionTimeout: SEND_TIMEOUT_MS,
-      greetingTimeout: SEND_TIMEOUT_MS,
-      socketTimeout: SEND_TIMEOUT_MS,
+      // Com `auth` presente, mesmo vazio, o nodemailer tenta o login. Sem
+      // usuário (relay local, como o Mailpit), o envio vai sem autenticar.
+      ...(env.SMTP_USER && { auth: { user: env.SMTP_USER, pass: env.SMTP_PASS } }),
+      ...SMTP_TIMEOUTS,
     });
   }
 
@@ -32,6 +39,7 @@ async function createTransport() {
   return nodemailer.createTransport({
     ...account.smtp,
     auth: { user: account.user, pass: account.pass },
+    ...SMTP_TIMEOUTS,
   });
 }
 

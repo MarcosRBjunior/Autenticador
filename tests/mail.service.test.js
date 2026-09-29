@@ -188,6 +188,23 @@ describe('MailService', () => {
       expect(transport.options).toMatchObject({ port: 465, secure: true, requireTLS: false });
     });
 
+    // Com `auth` presente, mesmo vazio, o nodemailer tenta o login e falha.
+    it('sem SMTP_USER, não tenta autenticar (relay local, como o Mailpit)', async () => {
+      const { mailService, nodemailer } = loadMailService({
+        NODE_ENV: 'development',
+        SMTP_HOST: 'localhost',
+        SMTP_PORT: '1025',
+        SMTP_USER: '',
+        SMTP_PASS: '',
+      });
+      const transport = watchTransport(nodemailer, async () => smtpInfo());
+
+      await mailService.sendActivationEmail({ user, token: 'tok3n', expiresInMinutes: 1440 });
+
+      expect(transport.options).toMatchObject({ host: 'localhost', port: 1025, requireTLS: false });
+      expect(transport.options).not.toHaveProperty('auth');
+    });
+
     it('em desenvolvimento, sem SMTP_HOST, envia pelo Ethereal e loga onde ver o e-mail', async () => {
       const { mailService, nodemailer, logger } = loadMailService({
         NODE_ENV: 'development',
@@ -210,6 +227,9 @@ describe('MailService', () => {
         port: 587,
         secure: false,
         auth: { user: 'ana.silva@ethereal.email', pass: 'senha-ethereal' },
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 10_000,
       });
       expect(logger.info).toHaveBeenCalledWith(
         {
