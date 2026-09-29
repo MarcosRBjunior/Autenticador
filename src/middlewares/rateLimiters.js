@@ -42,4 +42,19 @@ const loginLimiter = createRateLimiter({
   skipSuccessfulRequests: true,
 });
 
-module.exports = { registerLimiter, loginLimiter };
+// Todo pedido conta (a resposta é sempre 200). A chave IP + e-mail segura quem
+// tenta encher a caixa de alguém de links, sem travar os outros e-mails que
+// saem do mesmo IP.
+function forgotPasswordKey(req) {
+  const { email } = req.body ?? {};
+  const account = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  return `${ipKeyGenerator(req.ip)}:${account}`;
+}
+
+const forgotPasswordLimiter = createRateLimiter({
+  windowMs: 15 * MINUTE,
+  limit: 5,
+  keyGenerator: forgotPasswordKey,
+});
+
+module.exports = { registerLimiter, loginLimiter, forgotPasswordLimiter };

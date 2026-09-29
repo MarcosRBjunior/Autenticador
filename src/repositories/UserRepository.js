@@ -16,6 +16,11 @@ function findByUsernameOrEmail(username, email, { withPassword = false } = {}) {
   return withPassword ? query.select('+password') : query;
 }
 
+// O model guarda o e-mail em minúsculas.
+function findByEmail(email) {
+  return User.findOne({ email: email.toLowerCase() });
+}
+
 // Sem fields traz o documento completo (menos a senha), como o middleware de
 // autenticação precisa para conferir o tokenVersion.
 function findById(id, { fields } = {}) {
@@ -88,6 +93,7 @@ async function stats() {
 
 module.exports = {
   findByUsernameOrEmail,
+  findByEmail,
   findById,
   create,
   list,

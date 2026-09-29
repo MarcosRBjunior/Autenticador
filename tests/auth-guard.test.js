@@ -51,8 +51,8 @@ describe('proteção global de rotas', () => {
     ['HEAD', '/api/v1/health', 200],
     ['POST', '/api/v1/register', 400],
     ['POST', '/api/v1/login', 400],
+    ['POST', '/api/v1/auth/forgot-password', 400],
     // Ainda não existem, mas já estão liberadas: 404 em vez de 401.
-    ['POST', '/api/v1/auth/forgot-password', 404],
     ['GET', '/api/v1/auth/activate/abc123', 404],
   ])('libera %s %s sem token', async (method, path, expected) => {
     const call = request(app)[method.toLowerCase()](path);

@@ -45,4 +45,6 @@ const loginSchema = z.object({
     .max(1024, 'Senha longa demais'),
 });
 
-module.exports = { registerSchema, loginSchema };
+const forgotPasswordSchema = z.object({ email });
+
+module.exports = { registerSchema, loginSchema, forgotPasswordSchema };
