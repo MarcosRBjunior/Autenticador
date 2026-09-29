@@ -51,7 +51,15 @@ const PAGE_ERRORS = {
   500: { title: 'Algo deu errado', message: 'Tente de novo daqui a pouco.' },
 };
 
-const pageError = (status) =>
+const PAGE_ERRORS_BY_CODE = {
+  CSRF_INVALID: {
+    title: 'A página expirou',
+    message: 'Recarregue a página e tente de novo.',
+  },
+};
+
+const pageError = (status, code) =>
+  PAGE_ERRORS_BY_CODE[code] ??
   PAGE_ERRORS[status] ??
   (status >= 500
     ? PAGE_ERRORS[500]
@@ -65,7 +73,7 @@ function errorHandler(err, req, res, next) {
   if (status >= 500) res.err = err;
 
   if (!isApiRequest(req)) {
-    return res.status(status).render('error', { status, ...pageError(status) });
+    return res.status(status).render('error', { status, ...pageError(status, code) });
   }
 
   const body = details === undefined ? { code, message } : { code, message, details };
