@@ -65,4 +65,4 @@ function isAdmin(req, res, next) {
   next();
 }
 
-module.exports = { isAuthenticated, isAdmin, identifyUser };
+module.exports = { isAuthenticated, isAdmin, identifyUser, authenticate };

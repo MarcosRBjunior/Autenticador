@@ -19,5 +19,12 @@ module.exports = [
       globals: { ...globals.jest },
     },
   },
+  {
+    files: ['public/**/*.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: { ...globals.browser },
+    },
+  },
   prettier,
 ];

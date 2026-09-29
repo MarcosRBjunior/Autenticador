@@ -1,3 +1,4 @@
+const path = require('node:path');
 const express = require('express');
 const request = require('supertest');
 const { z } = require('zod');
@@ -8,7 +9,7 @@ const { errorHandler } = require('../src/middlewares/errorHandler');
 function appThatThrows(handler) {
   const app = express();
   app.use(express.json());
-  app.post('/boom', handler);
+  app.post('/api/boom', handler);
   app.use(errorHandler);
   return app;
 }
@@ -36,7 +37,7 @@ describe('errorHandler', () => {
       throw new AppError(403, 'FORBIDDEN', 'Acesso negado');
     });
 
-    const res = await request(app).post('/boom');
+    const res = await request(app).post('/api/boom');
 
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: { code: 'FORBIDDEN', message: 'Acesso negado' } });
@@ -47,7 +48,7 @@ describe('errorHandler', () => {
       throw new AppError(400, 'INVALID_INPUT', 'Dados inválidos', { field: 'email' });
     });
 
-    const res = await request(app).post('/boom');
+    const res = await request(app).post('/api/boom');
 
     expect(res.body.error.details).toEqual({ field: 'email' });
   });
@@ -59,7 +60,7 @@ describe('errorHandler', () => {
       throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
     });
 
-    const res = await request(app).post('/boom');
+    const res = await request(app).post('/api/boom');
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: 'Usuário não encontrado' } });
@@ -71,7 +72,7 @@ describe('errorHandler', () => {
       schema.parse(req.body);
     });
 
-    const res = await request(app).post('/boom').send({ username: 'a', email: 'x' });
+    const res = await request(app).post('/api/boom').send({ username: 'a', email: 'x' });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -87,7 +88,7 @@ describe('errorHandler', () => {
       });
     });
 
-    const res = await request(app).post('/boom');
+    const res = await request(app).post('/api/boom');
 
     expect(res.status).toBe(409);
     expect(res.body.error).toMatchObject({ code: 'CONFLICT', details: { fields: ['email'] } });
@@ -98,7 +99,7 @@ describe('errorHandler', () => {
     const app = appThatThrows((req, res) => res.json({}));
 
     const res = await request(app)
-      .post('/boom')
+      .post('/api/boom')
       .set('Content-Type', 'application/json')
       .send('{"email":');
 
@@ -110,7 +111,7 @@ describe('errorHandler', () => {
     const app = appThatThrows((req, res) => res.json({}));
 
     const res = await request(app)
-      .post('/boom')
+      .post('/api/boom')
       .set('Content-Type', 'application/json; charset=latin1')
       .send('{}');
 
@@ -123,7 +124,7 @@ describe('errorHandler', () => {
       throw new Error('conexão com o banco caiu em db.js:42');
     });
 
-    const res = await request(app).post('/boom');
+    const res = await request(app).post('/api/boom');
 
     expect(res.status).toBe(500);
     expect(res.body).toEqual({
@@ -143,10 +144,10 @@ describe('errorHandler', () => {
         });
         next();
       });
-      app.post('/boom', handler);
+      app.post('/api/boom', handler);
       app.use(errorHandler);
 
-      await request(app).post('/boom');
+      await request(app).post('/api/boom');
       return captured;
     }
 
@@ -167,5 +168,40 @@ describe('errorHandler', () => {
 
       expect(captured).toBeUndefined();
     });
+  });
+});
+
+describe('errorHandler em páginas', () => {
+  const pageApp = (handler) => {
+    const app = express();
+    app.set('view engine', 'ejs');
+    app.set('views', path.join(__dirname, '../src/views'));
+    app.get('/pagina', handler);
+    app.use(errorHandler);
+    return app;
+  };
+
+  it('erro inesperado vira a página 500, sem detalhes internos', async () => {
+    const res = await request(
+      pageApp(() => {
+        throw new Error('segredo interno');
+      }),
+    ).get('/pagina');
+
+    expect(res.status).toBe(500);
+    expect(res.headers['content-type']).toMatch(/html/);
+    expect(res.text).toContain('Algo deu errado');
+    expect(res.text).not.toContain('segredo interno');
+  });
+
+  it('403 vira a página "Sem permissão"', async () => {
+    const res = await request(
+      pageApp(() => {
+        throw new AppError(403, 'FORBIDDEN', 'Proibido');
+      }),
+    ).get('/pagina');
+
+    expect(res.status).toBe(403);
+    expect(res.text).toContain('Sem permissão');
   });
 });

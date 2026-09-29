@@ -4,6 +4,7 @@ const req = (method, path) => ({ method, path });
 
 describe('isPublicRoute', () => {
   it.each([
+    ['GET', '/'],
     ['GET', '/api/v1/health'],
     ['POST', '/api/v1/register'],
     ['POST', '/api/v1/login'],
