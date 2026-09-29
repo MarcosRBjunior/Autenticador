@@ -10,12 +10,14 @@ const {
   loginLimiter,
   forgotPasswordLimiters,
   resetPasswordLimiter,
+  activateLimiter,
 } = require('../middlewares/rateLimiters');
 const {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  activateSchema,
 } = require('../validators/auth.schemas');
 const {
   listUsersQuery,
@@ -44,6 +46,8 @@ router.post(
   validate(resetPasswordSchema),
   authController.resetPassword,
 );
+// Só POST ativa: scanners de link dos provedores de e-mail abrem o GET sozinhos.
+router.post('/auth/activate', activateLimiter, validate(activateSchema), authController.activate);
 
 // Protegidas pelo guard global: qualquer usuário autenticado.
 router.get('/me', usersController.me);

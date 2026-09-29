@@ -94,23 +94,33 @@ async function requestPasswordReset(email) {
   });
 }
 
-const invalidResetToken = () =>
+const invalidLink = (what) =>
   new AppError(
     400,
     'TOKEN_INVALID_OR_EXPIRED',
-    'Link de redefinição inválido ou expirado. Peça um novo.',
+    `Link de ${what} inválido ou expirado. Peça um novo.`,
   );
+
+// O token é gasto na mesma operação que confere se ele vale. Uma conta já ativa
+// continua ativa (o link só serviu para isso).
+async function activateAccount({ token }) {
+  const userId = await authTokenService.consume({ token, type: 'activation' });
+  if (!userId) throw invalidLink('ativação');
+
+  const activated = await userRepository.activate(userId);
+  if (!activated) throw invalidLink('ativação');
+}
 
 // O token é gasto antes da troca: dois pedidos com o mesmo link não trocam a
 // senha duas vezes. Se a troca falhar depois disso, o usuário pede outro link.
 async function resetPassword({ token, newPassword }) {
   const userId = await authTokenService.consume({ token, type: 'password_reset' });
-  if (!userId) throw invalidResetToken();
+  if (!userId) throw invalidLink('redefinição');
 
   // Pelo save() do model: a senha vira hash e o tokenVersion sobe, o que
   // derruba os JWTs emitidos antes (RN-11). O reset não ativa a conta.
   const user = await userRepository.update(userId, { password: newPassword });
-  if (!user) throw invalidResetToken();
+  if (!user) throw invalidLink('redefinição');
 }
 
 module.exports = {
@@ -118,6 +128,7 @@ module.exports = {
   login,
   logout,
   sendActivationLink,
+  activateAccount,
   requestPasswordReset,
   resetPassword,
 };

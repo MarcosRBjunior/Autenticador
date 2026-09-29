@@ -47,15 +47,23 @@ const loginSchema = z.object({
 
 const forgotPasswordSchema = z.object({ email });
 
-// O token só precisa ser texto (um objeto como {"$ne": null} para aqui); se
-// ele vale ou não, quem diz é o banco. A senha nova segue as regras do cadastro.
-const resetPasswordSchema = z.object({
-  token: z
-    .string({ error: 'Informe o token do link' })
-    .trim()
-    .min(1, 'Informe o token do link')
-    .max(256, 'Token longo demais'),
-  newPassword: password,
-});
+// Token dos links de reset e de ativação. Só precisa ser texto (um objeto como
+// {"$ne": null} para aqui); se ele vale ou não, quem diz é o banco.
+const linkToken = z
+  .string({ error: 'Informe o token do link' })
+  .trim()
+  .min(1, 'Informe o token do link')
+  .max(256, 'Token longo demais');
 
-module.exports = { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema };
+// A senha nova segue as regras do cadastro.
+const resetPasswordSchema = z.object({ token: linkToken, newPassword: password });
+
+const activateSchema = z.object({ token: linkToken });
+
+module.exports = {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  activateSchema,
+};

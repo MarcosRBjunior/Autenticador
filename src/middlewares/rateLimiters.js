@@ -59,8 +59,18 @@ const forgotPasswordLimiters = [
   createRateLimiter({ windowMs: 15 * MINUTE, limit: 5, keyGenerator: accountKey('email') }),
 ];
 
-// Adivinhar o token é inviável (256 bits): este limite, folgado, só segura
-// quem martela a rota.
-const resetPasswordLimiter = createRateLimiter({ windowMs: 15 * MINUTE, limit: 10 });
+// Rotas que recebem o token de um link (reset e ativação). Adivinhar o token é
+// inviável (256 bits): este limite, folgado, só segura quem martela a rota.
+// Cada rota ganha a própria contagem.
+const linkTokenLimiter = () => createRateLimiter({ windowMs: 15 * MINUTE, limit: 10 });
 
-module.exports = { registerLimiter, loginLimiter, forgotPasswordLimiters, resetPasswordLimiter };
+const resetPasswordLimiter = linkTokenLimiter();
+const activateLimiter = linkTokenLimiter();
+
+module.exports = {
+  registerLimiter,
+  loginLimiter,
+  forgotPasswordLimiters,
+  resetPasswordLimiter,
+  activateLimiter,
+};

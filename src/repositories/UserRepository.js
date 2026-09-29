@@ -58,6 +58,12 @@ async function update(id, data) {
   return user;
 }
 
+// Devolve false quando o usuário não existe mais.
+async function activate(id) {
+  const { matchedCount } = await User.updateOne({ _id: id }, { $set: { isActive: true } });
+  return matchedCount === 1;
+}
+
 // Derruba todos os JWTs já emitidos do usuário (logout). $inc no banco, e não
 // ler-somar-salvar, para dois logouts simultâneos não se sobrescreverem.
 async function incrementTokenVersion(id) {
@@ -98,6 +104,7 @@ module.exports = {
   create,
   list,
   update,
+  activate,
   incrementTokenVersion,
   delete: remove,
   countAdmins,
