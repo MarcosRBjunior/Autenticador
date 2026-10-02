@@ -35,6 +35,12 @@ app.use(cookieParser());
 // CSS, fontes e o script do olho da senha são públicos: vêm antes do guard.
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// Swagger UI do docs/openapi.yaml, público e só fora de produção. Em produção
+// /api-docs nem existe e cai no guard como qualquer caminho desconhecido.
+if (env.NODE_ENV !== 'production') {
+  app.use('/api-docs', require('./routes/docs.routes'));
+}
+
 // Tudo abaixo exige token, exceto a allowlist de middlewares/authGuard.js.
 // Vem antes do 404 de propósito: rota inexistente sem token não vaza que ela
 // não existe. Na /api dá 401 JSON; fora dela, a página sem sessão redireciona

@@ -1,0 +1,745 @@
+openapi: 3.1.0
+info:
+  title: Auth System API
+  version: 1.0.0
+  description: |
+    API de autenticação com Node.js, Express e MongoDB: cadastro com ativação por
+    e-mail, login com JWT, recuperação de senha e gestão de usuários com perfis
+    `user` e `admin`.
+
+    ## Autenticação
+
+    O login devolve um JWT (HS256, válido por 1 hora) no corpo e também no cookie
+    httpOnly `access_token`. As rotas protegidas aceitam qualquer um dos dois; o
+    header `Authorization: Bearer <token>` tem prioridade. O logout, a troca de
+    senha e a mudança de perfil invalidam os tokens já emitidos do usuário.
+
+    ## Erros
+
+    Todo erro sai no mesmo formato: `{ "error": { "code", "message", "details"? } }`.
+    `details` aparece nos erros de validação, com as mensagens de cada campo.
+    Valem para qualquer rota:
+
+    | Status | `code`              | Quando                                     |
+    | ------ | ------------------- | ------------------------------------------ |
+    | 400    | `INVALID_JSON`      | Corpo JSON malformado                      |
+    | 401    | `UNAUTHENTICATED`   | Rota protegida sem token                   |
+    | 401    | `INVALID_TOKEN`     | Token expirado, adulterado ou já invalidado |
+    | 404    | `NOT_FOUND`         | Rota inexistente (com sessão válida)       |
+    | 413    | `PAYLOAD_TOO_LARGE` | Corpo acima de 10 kb                       |
+    | 500    | `INTERNAL_ERROR`    | Erro inesperado (detalhes só no log)       |
+
+    ## Rate limit
+
+    As rotas públicas que recebem credenciais ou disparam e-mails têm limite de
+    tentativas, contado no MongoDB e compartilhado por todas as instâncias. As
+    respostas trazem os headers `RateLimit` e `RateLimit-Policy`; acima do limite,
+    a resposta é 429 com `Retry-After`.
+  license:
+    name: ISC
+    identifier: ISC
+# Como o guard da API: tudo exige token, menos as rotas com `security: []`.
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+servers:
+  # Relativo ao endereço do YAML: o "Try it out" do /api-docs chama o próprio
+  # servidor, em qualquer porta (o CSP do helmet só deixa a página falar com ele).
+  - url: /api/v1
+    description: Este servidor
+  - url: http://localhost:3000/api/v1
+    description: Desenvolvimento local
+  - url: https://autenticador-five.vercel.app/api/v1
+    description: Produção (Vercel)
+tags:
+  - name: Saúde
+    description: Para monitoramento; não exige token.
+  - name: Autenticação
+    description: Cadastro, login e logout.
+  - name: Conta
+    description: Ativação da conta e recuperação de senha pelos links enviados por e-mail.
+  - name: Usuários
+    description: Qualquer usuário logado.
+  - name: Admin
+    description: Só usuários com o perfil admin.
+
+paths:
+  /health:
+    get:
+      tags: [Saúde]
+      summary: Estado da API e do banco
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: API e banco no ar.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { status: ok, db: up }
+        '503':
+          description: Banco fora do ar.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { status: error, db: down }
+
+  /register:
+    post:
+      tags: [Autenticação]
+      summary: Cadastra um usuário
+      description: |
+        A conta nasce com o perfil `user` e inativa. Um link de ativação (válido por
+        24 horas) é enviado para o e-mail. Campos desconhecidos, como `role`, são
+        ignorados.
+
+        **Limite:** 10 cadastros por hora por IP.
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Usuário criado, aguardando ativação.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409':
+          description: Username ou e-mail já cadastrado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                username:
+                  value:
+                    error:
+                      code: USERNAME_TAKEN
+                      message: Username já cadastrado
+                      details: { username: [Este username já está em uso] }
+                email:
+                  value:
+                    error:
+                      code: EMAIL_TAKEN
+                      message: E-mail já cadastrado
+                      details: { email: [Este e-mail já está cadastrado] }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /login:
+    post:
+      tags: [Autenticação]
+      summary: Entra com username (ou e-mail) e senha
+      description: |
+        Devolve o JWT no corpo e no cookie `access_token` (httpOnly, Secure,
+        SameSite=Lax), com o mesmo prazo de 1 hora.
+
+        **Limite:** 5 tentativas erradas em 15 minutos por IP e conta. Os logins que
+        dão certo não contam.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Login feito.
+          headers:
+            Set-Cookie:
+              description: '`access_token=<JWT>; Max-Age=3600; Path=/; HttpOnly; Secure; SameSite=Lax`'
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Usuário ou senha inválidos (a resposta não diz qual dos dois).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error: { code: INVALID_CREDENTIALS, message: Usuário ou senha inválidos }
+        '403':
+          description: Senha certa, mas a conta ainda não foi ativada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error:
+                  code: ACCOUNT_INACTIVE
+                  message: Conta ainda não ativada. Verifique seu e-mail.
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /logout:
+    post:
+      tags: [Autenticação]
+      summary: Encerra as sessões do usuário
+      description: |
+        Invalida todos os tokens do usuário, em qualquer dispositivo, e apaga o
+        cookie. Responde 204 mesmo sem token ou com um token já inválido.
+      operationId: logout
+      security:
+        - {}
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Sessões encerradas e cookie apagado.
+
+  /auth/activate:
+    post:
+      tags: [Conta]
+      summary: Ativa a conta com o token do link
+      description: |
+        O `token` vem do link enviado por e-mail (`/activate?token=...`) e só vale
+        uma vez. Só o POST ativa: scanners de link dos provedores de e-mail abrem o
+        GET sozinhos.
+
+        **Limite:** 10 tentativas em 15 minutos por IP.
+      operationId: activateAccount
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenRequest' }
+      responses:
+        '200':
+          description: Conta ativada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+              example: { message: Conta ativada. Agora você já pode entrar. }
+        '400': { $ref: '#/components/responses/InvalidLinkToken' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/resend-activation:
+    post:
+      tags: [Conta]
+      summary: Reenvia o link de ativação
+      description: |
+        A resposta é sempre a mesma, com ou sem conta pendente para o e-mail. O link
+        novo substitui o anterior.
+
+        **Limite:** 20 pedidos por hora por IP e 5 em 15 minutos por IP e e-mail.
+      operationId: resendActivation
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailRequest' }
+      responses:
+        '200':
+          description: Pedido recebido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+              example:
+                message: Se houver uma conta aguardando ativação com esse e-mail, você vai receber um novo link.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/forgot-password:
+    post:
+      tags: [Conta]
+      summary: Pede o link para redefinir a senha
+      description: |
+        A resposta é sempre a mesma, com ou sem conta para o e-mail. O link vale por
+        30 minutos.
+
+        **Limite:** 20 pedidos por hora por IP e 5 em 15 minutos por IP e e-mail.
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailRequest' }
+      responses:
+        '200':
+          description: Pedido recebido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+              example:
+                message: Se o e-mail estiver cadastrado, você vai receber um link para redefinir a senha.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/reset-password:
+    post:
+      tags: [Conta]
+      summary: Define uma senha nova com o token do link
+      description: |
+        O `token` vem do link enviado por e-mail (`/reset-password?token=...`) e só
+        vale uma vez. A troca invalida os tokens de sessão já emitidos.
+
+        **Limite:** 10 tentativas em 15 minutos por IP.
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '200':
+          description: Senha redefinida.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+              example: { message: Senha redefinida. Entre com a nova senha. }
+        '400': { $ref: '#/components/responses/InvalidLinkToken' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /me:
+    get:
+      tags: [Usuários]
+      summary: Dados do usuário logado
+      operationId: getMe
+      responses:
+        '200':
+          description: O próprio usuário, com todos os campos não sensíveis.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users:
+    get:
+      tags: [Usuários]
+      summary: Lista os usuários, paginado
+      description: |
+        Do mais novo para o mais antigo. Os campos dependem de quem pergunta: o
+        usuário comum vê só `_id`, `username` e `createdAt`; o admin vê todos os
+        campos não sensíveis.
+      operationId: listUsers
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: search
+          in: query
+          description: Trecho do username, sem diferenciar maiúsculas.
+          schema: { type: string, maxLength: 50 }
+      responses:
+        '200':
+          description: Uma página de usuários.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Usuários]
+      summary: Um usuário pelo id
+      description: Os campos seguem a mesma regra da listagem.
+      operationId: getUser
+      responses:
+        '200':
+          description: O usuário.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: '#/components/schemas/UserForViewer' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/UserNotFound' }
+    put:
+      tags: [Admin]
+      summary: Muda o username ou a senha de um usuário
+      description: |
+        Só admin. Aceita `username`, `password` ou os dois; o perfil tem rota
+        própria e `role` aqui é ignorado. Trocar a senha invalida os tokens de
+        sessão do usuário.
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+      responses:
+        '200':
+          description: Usuário atualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/UserNotFound' }
+        '409':
+          description: Username já em uso por outra conta.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error:
+                  code: USERNAME_TAKEN
+                  message: Username já cadastrado
+                  details: { username: [Este username já está em uso] }
+    delete:
+      tags: [Admin]
+      summary: Exclui um usuário
+      description: Só admin. Exclui de vez a conta e os links pendentes dela.
+      operationId: deleteUser
+      responses:
+        '204':
+          description: Usuário excluído.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/UserNotFound' }
+        '409': { $ref: '#/components/responses/LastAdmin' }
+
+  /users/{id}/role:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [Admin]
+      summary: Muda o perfil de um usuário
+      description: Só admin. A mudança invalida os tokens de sessão do usuário.
+      operationId: updateUserRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRoleRequest' }
+      responses:
+        '200':
+          description: Perfil alterado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/UserNotFound' }
+        '409': { $ref: '#/components/responses/LastAdmin' }
+
+  /admin:
+    get:
+      tags: [Admin]
+      summary: Resumo com os contadores de usuários
+      description: Só admin.
+      operationId: getAdminSummary
+      responses:
+        '200':
+          description: Contadores.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: O `token` devolvido pelo login.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: Cookie httpOnly gravado pelo login (usado pelo navegador).
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: ObjectId do MongoDB (24 caracteres hexadecimais).
+      schema: { type: string, pattern: '^[a-fA-F0-9]{24}$' }
+
+  headers:
+    RateLimit:
+      description: 'Limite, tentativas restantes (`r`) e segundos até a janela recomeçar (`t`), ex.: `"5-in-15min"; r=4; t=900`.'
+      schema: { type: string }
+    RateLimitPolicy:
+      description: 'Política do limite, ex.: `"5-in-15min"; q=5; w=900`.'
+      schema: { type: string }
+    RetryAfter:
+      description: Segundos até poder tentar de novo.
+      schema: { type: integer }
+
+  responses:
+    ValidationError:
+      description: Dados inválidos. `details` traz as mensagens de cada campo.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                username: [O username deve ter pelo menos 3 caracteres]
+                email: [E-mail inválido]
+    InvalidLinkToken:
+      description: Corpo inválido (`VALIDATION_ERROR`) ou token do link inválido, expirado ou já usado (`TOKEN_INVALID_OR_EXPIRED`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            activation:
+              value:
+                error:
+                  code: TOKEN_INVALID_OR_EXPIRED
+                  message: Link de ativação inválido ou expirado. Peça um novo.
+            reset:
+              value:
+                error:
+                  code: TOKEN_INVALID_OR_EXPIRED
+                  message: Link de redefinição inválido ou expirado. Peça um novo.
+    Unauthorized:
+      description: Sem token (`UNAUTHENTICATED`) ou com token inválido, expirado ou já invalidado (`INVALID_TOKEN`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error: { code: UNAUTHENTICATED, message: Faça login para acessar este recurso }
+    Forbidden:
+      description: O usuário logado não é admin.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error: { code: FORBIDDEN, message: Acesso restrito a administradores }
+    UserNotFound:
+      description: Usuário não encontrado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error: { code: NOT_FOUND, message: Usuário não encontrado }
+    LastAdmin:
+      description: A operação deixaria o sistema sem nenhum admin ativo.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            demote:
+              value:
+                error: { code: LAST_ADMIN, message: Não é possível rebaixar o último admin ativo }
+            delete:
+              value:
+                error: { code: LAST_ADMIN, message: Não é possível excluir o último admin ativo }
+    TooManyRequests:
+      description: Limite de tentativas atingido.
+      headers:
+        RateLimit: { $ref: '#/components/headers/RateLimit' }
+        RateLimit-Policy: { $ref: '#/components/headers/RateLimitPolicy' }
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: TOO_MANY_REQUESTS
+              message: Muitas tentativas. Tente novamente mais tarde.
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Código estável, para o cliente tratar o erro.
+            message:
+              type: string
+              description: Mensagem em português, para mostrar ao usuário.
+            details:
+              type: object
+              description: Mensagens por campo (erros de validação e de campo já em uso).
+              additionalProperties:
+                type: array
+                items: { type: string }
+
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+
+    Health:
+      type: object
+      required: [status, db]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [up, down] }
+
+    User:
+      type: object
+      description: Todos os campos não sensíveis. Senha e versão do token nunca saem.
+      required: [_id, username, email, role, isActive, createdAt, updatedAt]
+      properties:
+        _id: { type: string, example: 6abf138b1ede227742638d08 }
+        username: { type: string, example: ana }
+        email: { type: string, format: email, example: ana@example.com }
+        role: { type: string, enum: [user, admin] }
+        isActive:
+          type: boolean
+          description: Falso até a conta ser ativada pelo link do e-mail.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    PublicUser:
+      type: object
+      description: O que um usuário comum vê dos outros.
+      required: [_id, username, createdAt]
+      properties:
+        _id: { type: string, example: 6abf138b1ede227742638d08 }
+        username: { type: string, example: ana }
+        createdAt: { type: string, format: date-time }
+
+    UserForViewer:
+      description: '`User` quando quem pergunta é admin; `PublicUser` quando é usuário comum.'
+      anyOf:
+        - $ref: '#/components/schemas/User'
+        - $ref: '#/components/schemas/PublicUser'
+
+    UserPage:
+      type: object
+      required: [data, page, limit, total, totalPages]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/UserForViewer' }
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 20 }
+        total: { type: integer, description: Total de usuários que batem com a busca. }
+        totalPages: { type: integer }
+
+    LoginResponse:
+      type: object
+      required: [token, expiresIn, user]
+      properties:
+        token: { type: string, description: JWT HS256. }
+        expiresIn: { type: integer, description: Validade do token em segundos., example: 3600 }
+        user: { $ref: '#/components/schemas/User' }
+
+    AdminSummary:
+      type: object
+      required: [totalUsers, admins, inactive]
+      properties:
+        totalUsers: { type: integer }
+        admins: { type: integer }
+        inactive: { type: integer, description: Contas ainda não ativadas. }
+
+    Username:
+      type: string
+      minLength: 3
+      maxLength: 30
+      pattern: '^[a-zA-Z0-9_.-]+$'
+      description: Letras sem acento, números, ponto, hífen e _. Único, sem diferenciar maiúsculas.
+
+    Password:
+      type: string
+      minLength: 8
+      description: De 8 caracteres a 72 bytes (o limite do bcrypt; acentos ocupam mais de um byte).
+
+    Email:
+      type: string
+      format: email
+      maxLength: 254
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username: { $ref: '#/components/schemas/Username' }
+        email: { $ref: '#/components/schemas/Email' }
+        password: { $ref: '#/components/schemas/Password' }
+      example: { username: ana, email: ana@example.com, password: senha-forte-123 }
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 254
+          description: O username ou o e-mail.
+        password: { type: string, minLength: 1, maxLength: 1024 }
+      example: { username: ana, password: senha-forte-123 }
+
+    EmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { $ref: '#/components/schemas/Email' }
+      example: { email: ana@example.com }
+
+    LinkToken:
+      type: string
+      minLength: 1
+      maxLength: 256
+      description: O token do link enviado por e-mail.
+
+    TokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { $ref: '#/components/schemas/LinkToken' }
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token: { $ref: '#/components/schemas/LinkToken' }
+        newPassword: { $ref: '#/components/schemas/Password' }
+
+    UpdateUserRequest:
+      type: object
+      description: Pelo menos um dos dois campos.
+      minProperties: 1
+      properties:
+        username: { $ref: '#/components/schemas/Username' }
+        password: { $ref: '#/components/schemas/Password' }
+      example: { username: ana.silva }
+
+    UpdateRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [user, admin] }
+      example: { role: admin }

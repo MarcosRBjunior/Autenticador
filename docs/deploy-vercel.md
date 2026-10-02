@@ -81,7 +81,8 @@ já existe. Num banco novo, rode o seed da sua máquina com a `MONGODB_URI` dele
 - **Rate limit por IP pelo front.** A Vercel não repassa o IP do visitante através
   do proxy, então os limites por IP (cadastro, links por e-mail, ativação e reset)
   contam todos os acessos pelo front juntos. O limite de tentativas de login é por
-  conta e não muda. As contagens também ficam em memória, por instância da função.
+  conta e não muda. As contagens ficam no MongoDB (coleção `rate_limits`) e valem
+  para todas as instâncias da função.
 - **Gmail** envia até cerca de 500 e-mails por dia, e o remetente é a conta usada no
   `SMTP_USER`.
 - **Desenvolvimento e produção usam o mesmo banco.** Testes locais (cadastros,
