@@ -1,5 +1,6 @@
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const AppError = require('../utils/AppError');
+const { MongoRateLimitStore } = require('./rateLimitStore');
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -9,12 +10,13 @@ function tooManyRequests(req, res, next) {
   next(new AppError(429, 'TOO_MANY_REQUESTS', 'Muitas tentativas. Tente novamente mais tarde.'));
 }
 
-// Contagem em memória, por instância. Na Vercel isso não é compartilhado entre
-// instâncias; a store no Mongo entra na US-20 (D-15).
-function createRateLimiter({ windowMs, limit, ...options }) {
+// A contagem fica no Mongo e vale para todas as instâncias da função na Vercel
+// (D-15). `name` é o prefixo dela no banco: cada limite precisa de um próprio.
+function createRateLimiter({ name, windowMs, limit, ...options }) {
   return rateLimit({
     windowMs,
     limit,
+    store: new MongoRateLimitStore(name),
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     handler: tooManyRequests,
@@ -23,7 +25,7 @@ function createRateLimiter({ windowMs, limit, ...options }) {
 }
 
 // Conta toda tentativa, inclusive as inválidas: é o que segura spam de cadastro.
-const registerLimiter = createRateLimiter({ windowMs: HOUR, limit: 10 });
+const registerLimiter = createRateLimiter({ name: 'register', windowMs: HOUR, limit: 10 });
 
 // O limite roda antes da validação: a conta entra na chave cortada no tamanho
 // máximo de um e-mail, para um texto enorme não virar uma chave enorme na memória.
@@ -44,6 +46,7 @@ function accountKey(field) {
 
 // Só as tentativas que falham contam: quem acerta a senha não se bloqueia.
 const loginLimiter = createRateLimiter({
+  name: 'login',
   windowMs: 15 * MINUTE,
   limit: 5,
   keyGenerator: accountKey('username'),
@@ -55,21 +58,27 @@ const loginLimiter = createRateLimiter({
 // contra quem tenta encher a caixa de alguém de links; e só por IP, contra quem
 // dispara e-mails para todos os cadastrados, gastando a cota do SMTP e a
 // reputação do remetente. Cada rota ganha a própria contagem.
-const emailLinkLimiters = () => [
-  createRateLimiter({ windowMs: HOUR, limit: 20 }),
-  createRateLimiter({ windowMs: 15 * MINUTE, limit: 5, keyGenerator: accountKey('email') }),
+const emailLinkLimiters = (route) => [
+  createRateLimiter({ name: `${route}-ip`, windowMs: HOUR, limit: 20 }),
+  createRateLimiter({
+    name: `${route}-account`,
+    windowMs: 15 * MINUTE,
+    limit: 5,
+    keyGenerator: accountKey('email'),
+  }),
 ];
 
-const forgotPasswordLimiters = emailLinkLimiters();
-const resendActivationLimiters = emailLinkLimiters();
+const forgotPasswordLimiters = emailLinkLimiters('forgot-password');
+const resendActivationLimiters = emailLinkLimiters('resend-activation');
 
 // Rotas que recebem o token de um link (reset e ativação). Adivinhar o token é
 // inviável (256 bits): este limite, folgado, só segura quem martela a rota.
 // Cada rota ganha a própria contagem.
-const linkTokenLimiter = () => createRateLimiter({ windowMs: 15 * MINUTE, limit: 10 });
+const linkTokenLimiter = (route) =>
+  createRateLimiter({ name: route, windowMs: 15 * MINUTE, limit: 10 });
 
-const resetPasswordLimiter = linkTokenLimiter();
-const activateLimiter = linkTokenLimiter();
+const resetPasswordLimiter = linkTokenLimiter('reset-password');
+const activateLimiter = linkTokenLimiter('activate');
 
 module.exports = {
   registerLimiter,
