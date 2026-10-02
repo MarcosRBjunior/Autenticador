@@ -68,6 +68,12 @@ describe('npm run setup (scripts/create-env.js)', () => {
     expect(fs.readFileSync(target, 'utf8')).toBe('JWT_SECRET=o-meu\n');
   });
 
+  it('qualquer outra falha ao gravar aparece, em vez de passar por "já existe"', () => {
+    target = path.join(dir, 'pasta-que-nao-existe', '.env');
+
+    expect(create).toThrow(expect.objectContaining({ code: 'ENOENT' }));
+  });
+
   it('o .env só pode ser lido pelo dono do arquivo', () => {
     create();
 
